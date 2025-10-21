@@ -1,0 +1,74 @@
+/* --- 全局設定 --- */
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; /* 用一個靚啲嘅字體 */
+  background-color: #f0f2f5; /* 淺灰色背景 */
+  color: #333; /* 深灰色文字 */
+  display: flex; /* 用 Flexbox 佈局 */
+  justify-content: center; /* 水平置中 */
+  align-items: center; /* 垂直置中 */
+  min-height: 100vh; /* 最少要同螢幕一樣高 */
+  margin: 0; /* 移除 body 預設嘅邊距 */
+}
+
+/* --- 主要內容容器 --- */
+.container {
+  background-color: white; /* 白色背景 */
+  padding: 40px; /* 內邊距 */
+  border-radius: 10px; /* 圓角 */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); /* 加少少陰影，有立體感 */
+  text-align: center; /* 裡面嘅嘢全部置中 */
+  max-width: 600px; /* 唔好俾佢變得太闊 */
+  margin: 20px; /* 手機睇嘅時候唔好貼邊 */
+}
+
+/* --- Logo 圖片 --- */
+.logo {
+  width: 80px; /* 設定圖片闊度 */
+  margin-bottom: 20px; /* 同下面嘅標題隔開啲 */
+}
+
+/* --- 標題 h1 --- */
+h1 {
+  color: #1a1a1a; /* 深色啲嘅標題 */
+  margin-bottom: 10px; /* 同下面嘅段落隔開啲 */
+}
+
+/* --- 段落 p --- */
+p {
+  font-size: 1.1em; /* 字體大少少 */
+  line-height: 1.6; /* 行距闊啲，好睇啲 */
+  color: #555; /* 冇標題咁深色 */
+}
+
+/* --- 按鈕群組 --- */
+.button-group {
+    margin-top: 30px; /* 同上面內容隔開啲 */
+}
+
+/* --- 按鈕樣式 --- */
+.button {
+  display: inline-block; /* 咁樣先可以設定 padding 同 margin */
+  background-color: #0366d6; /* GitHub 藍色 */
+  color: white; /* 白色字 */
+  padding: 12px 24px; /* 按鈕大細 */
+  text-decoration: none; /* 移除底線 */
+  border-radius: 6px; /* 圓角 */
+  font-weight: bold; /* 粗體字 */
+  transition: background-color 0.2s, transform 0.2s; /* 加個順暢嘅過渡效果 */
+  margin: 0 5px; /* 按鈕之間嘅距離 */
+}
+
+/* 當滑鼠放上去時嘅效果 */
+.button:hover {
+  background-color: #005cc5; /* 深少少嘅藍色 */
+  transform: translateY(-2px); /* 輕微向上移，有浮起嘅感覺 */
+}
+
+/* 第二個按鈕嘅樣式 */
+.button.button-secondary {
+    background-color: #6a737d; /* 灰色 */
+}
+
+.button.button-secondary:hover {
+    background-color: #586069; /* 深啲嘅灰色 */
+}
