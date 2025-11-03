@@ -1,0 +1,1723 @@
+// \VSCode_Projects\MotionGameTemplate2\index.html 
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Motion Games Platform</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/holistic/holistic.js" crossorigin="anonymous"></script>
+</head>
+<body>
+    <main id="app-container"></main>
+    <script src="src/utils.js"></script>
+    <script type="module" src="src/app.js"></script>
+</body>
+</html>
+// \VSCode_Projects\MotionGameTemplate2\style.css 
+/* ================= GLOBAL STYLES ================= */
+:root {
+    --bg-color: #1a1a1a;
+    --text-color: #f0f0f0;
+    --highlight-color: #ffd700;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    margin: 0;
+    padding: 0;
+    overflow: hidden; /* === 修改：改返做 hidden，唔要滾動條 === */
+    cursor: none;
+}
+
+#app-container {
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* ================= LAUNCHER SCENE STYLES (大改) ================= */
+.launcher-scene {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 4vh 4vw; /* 使用 vh/vw 單位做 padding */
+    box-sizing: border-box;
+}
+
+.launcher-scene h1 {
+    font-size: clamp(2em, 4vw, 2.5em); /* 響應式字體 */
+    color: var(--highlight-color);
+    margin: 0 0 4vh 0; /* 使用 vh 單位做 margin */
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+    flex-shrink: 0; /* 唔好壓縮標題 */
+}
+
+.launcher-scene .launcher-grid {
+    display: grid;
+    /* === 修改：固定 4x2 佈局 === */
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+    gap: clamp(15px, 2vw, 25px); /* 響應式 gap */
+    width: 100%;
+    height: 100%;
+    max-width: 1400px; /* 加個最大寬度限制，避免喺超寬屏拉得太開 */
+}
+
+.launcher-scene .card {
+    background-color: #2b2b2b;
+    border: 2px solid #444;
+    border-radius: 12px;
+    padding: clamp(15px, 2vh, 25px); /* 響應式 padding */
+    text-decoration: none;
+    color: var(--text-color);
+    transition: transform 0.2s ease-out, box-shadow 0.2s ease-out, border-color 0.3s;
+    display: flex;
+    flex-direction: column;
+    justify-content: center; /* 改為置中 */
+    align-items: center; /* 改為置中 */
+    text-align: center; /* 文字置中 */
+    cursor: none;
+    pointer-events: auto;
+}
+
+.launcher-scene .card:hover, .launcher-scene .card.motion-hover {
+    transform: scale(1.05); /* 移除 translateY，純放大 */
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4);
+    border-color: var(--highlight-color);
+}
+
+.launcher-scene .card h2, .launcher-scene .card p, .launcher-scene .card .tags {
+    pointer-events: none;
+}
+
+.launcher-scene h2 { margin: 0 0 10px 0; font-size: clamp(1.2em, 1.5vw, 1.5em); color: #fff; }
+.launcher-scene p { display: none; } /* === 修改：暫時隱藏描述，節省空間 === */
+.launcher-scene .tags { margin-top: 15px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.launcher-scene .tag { background-color: #555; color: #ddd; padding: 5px 10px; border-radius: 20px; font-size: clamp(0.7em, 1vw, 0.8em); font-weight: bold; }
+
+/* ================= COMMON COMPONENTS ================= */
+.back-button { position: fixed; top: 20px; left: 20px; z-index: 9990; width: 60px; height: 60px; background-color: rgba(0, 0, 0, 0.5); border: 2px solid #fff; border-radius: 50%; display: flex; justify-content: center; align-items: center; cursor: none; transition: transform 0.2s, box-shadow 0.2s, border-color 0.3s; text-decoration: none; pointer-events: auto; }
+.back-button:hover, .back-button.motion-hover { transform: scale(1.1); box-shadow: 0 0 15px rgba(255, 255, 255, 0.8); border-color: #ffd700; }
+.back-button svg { width: 50%; height: 50%; fill: #fff; pointer-events: none; }
+// \VSCode_Projects\MotionGameTemplate2\src\app.js 
+import { MotionEngine } from './motion-engine.js';
+import { SceneManager } from './scene-manager.js';
+
+class App {
+    constructor() {
+        this.motionEngine = new MotionEngine();
+        this.sceneManager = new SceneManager('app-container');
+    }
+
+    async init() {
+        console.log("Cerberus Platform: Initializing...");
+        window.motionEngine = this.motionEngine;
+        window.sceneManager = this.sceneManager;
+        
+        try {
+            await this.motionEngine.initialize();
+            console.log("Motion Engine is online.");
+            this.sceneManager.loadScene('launcher');
+        } catch (error) {
+            console.error("Failed to initialize the app:", error);
+            document.getElementById('app-container').innerHTML = `
+                <div style="color: white; text-align: center; padding: 50px;">
+                    <h1>初始化失敗</h1><p>無法啟動動作感應引擎。請確保您已授權瀏覽器使用相機，並刷新頁面重試。</p>
+                    <p><em>錯誤詳情: ${error.message}</em></p>
+                </div>`;
+        }
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const app = new App();
+    app.init();
+});.
+// \VSCode_Projects\MotionGameTemplate2\src\motion-engine.js 
+// src/motion-engine.js
+
+window.getPalmCenterFromPose = function(landmarks, hand = 'right') { /* ... 不變 ... */ if (!landmarks) return null; const isLeft = hand === 'left'; const wristIdx = isLeft ? 15 : 16; const pinkyIdx = isLeft ? 17 : 18; const indexIdx = isLeft ? 19 : 20; const wrist = landmarks[wristIdx], pinky = landmarks[pinkyIdx], index = landmarks[indexIdx]; if (wrist && pinky && index && wrist.visibility > 0.3 && pinky.visibility > 0.3 && index.visibility > 0.3) { return { x: (wrist.x + pinky.x + index.x) / 3, y: (wrist.y + pinky.y + index.y) / 3 }; } return null; }
+
+// === 核心修改 1：修正 PointSmoother 嘅行為 ===
+class PointSmoother {
+    constructor(smoothingFactor = 0.8) {
+        this.smoothingFactor = smoothingFactor;
+        this.smoothedPoint = null;
+        this.lastUpdateTime = 0;
+        this.timeout = 100; // 如果 100ms 內冇新數據，就判斷為消失
+    }
+
+    update(rawPoint) {
+        const now = performance.now();
+        
+        if (rawPoint) {
+            this.lastUpdateTime = now; // 記錄收到有效數據嘅時間
+            if (!this.smoothedPoint) {
+                this.smoothedPoint = { ...rawPoint };
+            } else {
+                this.smoothedPoint.x = this.smoothingFactor * this.smoothedPoint.x + (1 - this.smoothingFactor) * rawPoint.x;
+                this.smoothedPoint.y = this.smoothingFactor * this.smoothedPoint.y + (1 - this.smoothingFactor) * rawPoint.y;
+            }
+            return this.smoothedPoint;
+        } else {
+            // 如果冇收到新數據，並且超過咗 timeout
+            if (now - this.lastUpdateTime > this.timeout) {
+                this.smoothedPoint = null; // 將儲存嘅點清除
+            }
+            return this.smoothedPoint; // 返回 null 或者最後一個點
+        }
+    }
+
+    reset() {
+        this.smoothedPoint = null;
+        this.lastUpdateTime = 0;
+    }
+}
+// ============================================
+
+export class MotionEngine {
+    // ... MotionEngine 嘅代碼同上次完全一樣，不變 ...
+    constructor() { this.currentMode = null; this.detector = null; this.camera = null; this.isRunning = false; this.videoElement = null; this.outputCanvas = null; this.canvasCtx = null; this.results = {}; this.eventListeners = new Map(); this.pointers = [ { id: 0, hand: 'left', x: 0, y: 0, isVisible: false, smoother: new PointSmoother(0.7), dwell: { element: null, startTime: 0, timer: null } }, { id: 1, hand: 'right', x: 0, y: 0, isVisible: false, smoother: new PointSmoother(0.7), dwell: { element: null, startTime: 0, timer: null } } ]; this.pointer = { x: 0, y: 0, isVisible: false }; this.ACTIVATION_THRESHOLD = 2000; this.lastActivationTime = 0; }
+    async initialize() { if (this.camera) return; this._createEngineElements(); this.camera = new Camera(this.videoElement, { onFrame: async () => { if (this.detector && this.videoElement.readyState === 4) { await this.detector.send({ image: this.videoElement }); } }, width: 1280, height: 720 }); await this.camera.start(); this.isRunning = true; this._gameLoop(); }
+    async setMode(newMode) { if (this.currentMode === newMode) return; console.log(`[MotionEngine] Switching mode to '${newMode}'...`); this.currentMode = newMode; this.detector = null; this.pointers.forEach(p => p.smoother.reset()); if (newMode === null || newMode === 'none') { this.emit('mode-changed', null); return; } const options = { locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/${newMode}/${file}` }; switch (newMode) { case 'hands': this.detector = new Hands(options); this.detector.setOptions({ maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 }); break; case 'pose': this.detector = new Pose(options); this.detector.setOptions({ modelComplexity: 1, smoothLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 }); break; case 'holistic': this.detector = new Holistic(options); this.detector.setOptions({ modelComplexity: 1, smoothLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.7 }); break; default: console.error(`Unsupported mode: ${newMode}`); this.currentMode = null; return; } this.detector.onResults(results => this._onResults(results)); this.emit('mode-changed', newMode); }
+    setPointerHand(hand) {}
+    on(eventName, callback) { if (!this.eventListeners.has(eventName)) { this.eventListeners.set(eventName, []); } this.eventListeners.get(eventName).push(callback); }
+    emit(eventName, data) { if (this.eventListeners.has(eventName)) { this.eventListeners.get(eventName).forEach(callback => callback(data)); } }
+    _createEngineElements() { this.videoElement = document.createElement('video'); this.videoElement.id = 'motion-engine-video'; this.videoElement.style.display = 'none'; document.body.appendChild(this.videoElement); this.outputCanvas = document.createElement('canvas'); this.outputCanvas.id = 'motion-engine-canvas'; this.outputCanvas.width = window.innerWidth; this.outputCanvas.height = window.innerHeight; this.canvasCtx = this.outputCanvas.getContext('2d'); Object.assign(this.outputCanvas.style, { position: 'fixed', top: '0', left: '0', width: '100vw', height: '100vh', zIndex: '9999', pointerEvents: 'none', transform: 'scaleX(-1)', display: 'none' }); document.body.appendChild(this.outputCanvas); window.addEventListener('resize', () => { this.outputCanvas.width = window.innerWidth; this.outputCanvas.height = window.innerHeight; }); }
+    _onResults(results) { this.results = results; this._updatePointers(results); this.emit('results-updated', results); }
+    _updatePointers(results) { let handData = this.getHandsData(results); this.pointers.forEach(p => { const rawPoint = handData[p.hand]; const smoothedPoint = p.smoother.update(rawPoint); let wasVisible = p.isVisible; if (smoothedPoint) { p.x = smoothedPoint.x; p.y = smoothedPoint.y; p.isVisible = true; } else { p.isVisible = false; } if (p.isVisible || wasVisible) { this.emit('pointer-updated', { hand: p.hand, x: p.x, y: p.y, isVisible: p.isVisible }); } }); const activePointer = this.pointers.find(p => p.isVisible && p.hand === 'right') || this.pointers.find(p => p.isVisible); if (activePointer) { this.pointer.x = (1 - activePointer.x) * window.innerWidth; this.pointer.y = activePointer.y * window.innerHeight; this.pointer.isVisible = true; } else { this.pointer.isVisible = false; } }
+    getHandsData(results) { let hands = { left: null, right: null }; if (this.currentMode === 'hands' && results.multiHandLandmarks && results.multiHandedness) { for (let i = 0; i < results.multiHandLandmarks.length; i++) { if(results.multiHandedness[i]) { const hand = results.multiHandedness[i].label.toLowerCase(); const target = results.multiHandLandmarks[i][8]; if (target) hands[hand] = { x: target.x, y: target.y }; } } } else if (this.currentMode === 'holistic') { if (results.leftHandLandmarks) { const target = results.leftHandLandmarks[8]; if (target) hands.left = { x: target.x, y: target.y }; } if (results.rightHandLandmarks) { const target = results.rightHandLandmarks[8]; if (target) hands.right = { x: target.x, y: target.y }; } } else if (this.currentMode === 'pose' && results.poseLandmarks) { hands.left = window.getPalmCenterFromPose(results.poseLandmarks, 'left'); hands.right = window.getPalmCenterFromPose(results.poseLandmarks, 'right'); } return hands; }
+    _updateHoverAndActivation() { const now = performance.now(); if (now - this.lastActivationTime < 500) { this.pointers.forEach(p => this._clearDwell(p)); return; } const activatableElements = document.querySelectorAll('[data-motion-activatable]'); this.pointers.forEach(p => { if (!p.isVisible) { this._clearDwell(p); return; } const screenX = (1 - p.x) * window.innerWidth; const screenY = p.y * window.innerHeight; let currentlyHovered = null; for (const el of activatableElements) { const rect = el.getBoundingClientRect(); if (screenX >= rect.left && screenX <= rect.right && screenY >= rect.top && screenY <= rect.bottom) { currentlyHovered = el; break; } } if (p.dwell.element !== currentlyHovered) { this._clearDwell(p); if (currentlyHovered) { p.dwell.element = currentlyHovered; p.dwell.element.classList.add('motion-hover'); p.dwell.startTime = performance.now(); p.dwell.timer = setTimeout(() => { this.lastActivationTime = performance.now(); p.dwell.element.click(); this._clearDwell(p); }, this.ACTIVATION_THRESHOLD); } } }); const anyElementHovered = this.pointers.some(p => p.dwell.element !== null); if (!anyElementHovered) { document.querySelectorAll('.motion-hover').forEach(el => el.classList.remove('motion-hover')); } }
+    _clearDwell(pointer) { if (pointer.dwell.element) { pointer.dwell.element.classList.remove('motion-hover'); } if (pointer.dwell.timer) { clearTimeout(pointer.dwell.timer); } pointer.dwell = { element: null, startTime: 0, timer: null }; }
+    _drawPointer() { const ctx = this.canvasCtx; ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height); this.pointers.forEach(p => { if (!p.isVisible) return; const drawX = p.x * ctx.canvas.width; const drawY = p.y * ctx.canvas.height; const color = p.hand === 'left' ? 'rgba(0, 255, 255, 1)' : 'rgba(255, 215, 0, 1)'; if (p.dwell.element) { const elapsedTime = performance.now() - p.dwell.startTime; const progress = Math.min(elapsedTime / this.ACTIVATION_THRESHOLD, 1); ctx.strokeStyle = color; ctx.lineWidth = 5; ctx.beginPath(); const radius = 20; ctx.arc(drawX, drawY, radius, -Math.PI / 2, -Math.PI / 2 + 2 * Math.PI * progress); ctx.stroke(); } ctx.fillStyle = color.replace('1)', '0.7)'); ctx.beginPath(); ctx.arc(drawX, drawY, 15, 0, 2 * Math.PI); ctx.fill(); }); }
+    _gameLoop() { if (!this.isRunning) return; this._updateHoverAndActivation(); if(this.outputCanvas.style.display !== 'none') { this._drawPointer(); } requestAnimationFrame(() => this._gameLoop()); }
+}.
+// \VSCode_Projects\MotionGameTemplate2\src\scene-manager.js 
+export class SceneManager {
+    constructor(containerId) {
+        this.container = document.getElementById(containerId);
+        if (!this.container) throw new Error(`SceneManager: Container with id "${containerId}" not found.`);
+        this.currentScene = null;
+    }
+
+    async loadScene(sceneName, params = {}) {
+        console.log(`Loading scene: ${sceneName}...`);
+        if (this.currentScene && typeof this.currentScene.destroy === 'function') {
+            this.currentScene.destroy();
+        }
+        this.currentScene = null;
+        this.container.innerHTML = `<div style="color:white;text-align:center;padding-top:100px;font-size:2em;">Loading ${sceneName}...</div>`;
+        try {
+            const sceneModule = await import(`./scenes/${sceneName}-scene.js`);
+            const SceneClass = Object.values(sceneModule)[0];
+            if (!SceneClass) throw new Error(`No class exported from ${sceneName}-scene.js`);
+            this.currentScene = new SceneClass(params);
+            const sceneHtml = this.currentScene.render();
+            this.container.innerHTML = sceneHtml;
+            if (typeof this.currentScene.init === 'function') {
+                this.currentScene.init();
+            }
+            console.log(`Scene loaded: ${sceneName}`);
+        } catch (error) {
+            console.error(`Failed to load scene "${sceneName}":`, error);
+            this.container.innerHTML = `<div style="color:red;text-align:center;padding:50px;"><h2>Error loading scene: ${sceneName}</h2><p>${error.message}</p></div>`;
+        }
+    }
+}..
+// \VSCode_Projects\MotionGameTemplate2\src\utils.js 
+// src/utils.js
+
+window.getPalmCenterFromPose = function(landmarks, hand = 'right') {
+    if (!landmarks) return null;
+    const isLeft = hand === 'left';
+    const wristIdx = isLeft ? 15 : 16;
+    const pinkyIdx = isLeft ? 17 : 18;
+    const indexIdx = isLeft ? 19 : 20;
+    const wrist = landmarks[wristIdx], pinky = landmarks[pinkyIdx], index = landmarks[indexIdx];
+    if (wrist && pinky && index && wrist.visibility > 0.3 && pinky.visibility > 0.3 && index.visibility > 0.3) {
+        return { x: (wrist.x + pinky.x + index.x) / 3, y: (wrist.y + pinky.y + index.y) / 3 };
+    }
+    return null;
+}
+
+/**
+ * 判斷一隻手係咪處於捏合狀態。
+ * @param {Array} handLandmarks - 單隻手嘅 21 個關節點數組。
+ * @param {number} threshold - 判斷為捏合嘅距離閾值 (0-1 範圍)。
+ * @returns {boolean} - 如果捏合緊就返回 true。
+ */
+window.isPinching = function(handLandmarks, threshold = 0.04) {
+    if (!handLandmarks || handLandmarks.length < 9) {
+        return false;
+    }
+    const thumbTip = handLandmarks[4];
+    const indexTip = handLandmarks[8];
+    const distance = Math.hypot(thumbTip.x - indexTip.x, thumbTip.y - indexTip.y);
+    return distance < threshold;
+}..
+// \VSCode_Projects\MotionGameTemplate2\src\scenes\test.html 
+<style>.test-container{display:grid;grid-template-columns:1fr 380px;gap:16px;padding:16px;height:100vh;background:#1a1a1a;color:#fff}.main-view{background:#2b2b2b;border-radius:12px;padding:16px;display:flex;flex-direction:column}.video-container{position:relative;width:100%;flex-grow:1;background:#000;border-radius:8px;overflow:hidden}#output-canvas{position:absolute;width:100%;height:100%;object-fit:contain;transform:scaleX(-1)}.control-panel{background:#2b2b2b;border-radius:12px;padding:16px;overflow-y:auto;pointer-events:auto}.panel-section{margin-bottom:20px;padding:16px;background:#3c3c3c;border-radius:8px}.panel-title{font-size:16px;font-weight:600;margin-bottom:12px;color:#ffd700}.mode-buttons{display:grid;grid-template-columns:1fr 1fr;gap:8px}.mode-btn{padding:10px;background:#555;border:1px solid #666;border-radius:6px;color:#fff;cursor:pointer;transition:all .2s;font-size:14px}.mode-btn:hover,.mode-btn.motion-hover{background:#666;border-color:#ffd700}.mode-btn.active{background:#ffd700;color:#1a1a1a;border-color:#ffd700;font-weight:700}.status-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}</style><div class="scene-container test-container"><a class="back-button" data-motion-activatable onclick="window.app.showScene('launcher')"><svg viewBox="0 0 24 24"><path d="M20,11V13H8L13.5,18.5L12.08,19.92L4.16,12L12.08,4.08L13.5,5.5L8,11H20Z"/></svg></a><div class="main-view"><div class="status-bar"><div><span id="status-text"></span></div><div><span id="current-mode"></span></div></div><div class="video-container"><canvas id="output-canvas"></canvas></div></div><div class="control-panel"><div class="panel-section"><div class="panel-title">🎯 Detection Mode</div><div class="mode-buttons"><button class="mode-btn" data-mode="hands" data-motion-activatable>✋ Hands</button><button class="mode-btn" data-mode="pose" data-motion-activatable>🚶 Pose</button><button class="mode-btn" data-mode="holistic" data-motion-activatable>🧍 Holistic</button></div></div></div></div>
+<script>
+class TestDashboard{constructor(){this.container=document.querySelector(".test-container"),this.canvas=document.getElementById("output-canvas"),this.ctx=this.canvas.getContext("2d"),this.statusText=document.getElementById("status-text"),this.currentModeEl=document.getElementById("current-mode"),this.loopHandle=null,this.init()}init(){this.canvas.width=window.innerWidth-450,this.canvas.height=window.innerHeight-100,this.container.querySelectorAll(".mode-btn").forEach(t=>{t.addEventListener("click",()=>{this.setMode(t.dataset.mode)})}),this.gameLoop()}setMode(t){if(window.motionEngine){window.motionEngine.setMode(t,{width:1280,height:720}),this.container.querySelectorAll(".mode-btn").forEach(e=>{e.classList.toggle("active",e.dataset.mode===t)}),this.currentModeEl.textContent=`Mode: ${t}`}}updateAndDraw(){const t=window.motionEngine?window.motionEngine.results:null,e=window.motionEngine?window.motionEngine.activeMode:null;this.statusText.textContent=`Engine: ${t?"Receiving Data":"Idle"}`,this.ctx.clearRect(0,0,this.canvas.width,this.canvas.height),t&&t.image&&(this.ctx.drawImage(t.image,0,0,this.canvas.width,this.canvas.height),(()=>{switch(e){case"pose":t.poseLandmarks&&drawConnectors(this.ctx,t.poseLandmarks,POSE_CONNECTIONS,{color:"white",lineWidth:4});break;case"hands":t.multiHandLandmarks&&t.multiHandLandmarks.forEach(e=>{drawConnectors(this.ctx,e,HAND_CONNECTIONS,{color:"#3498db",lineWidth:4})});break;case"holistic":t.poseLandmarks&&drawConnectors(this.ctx,t.poseLandmarks,POSE_CONNECTIONS,{color:"white",lineWidth:2}),t.leftHandLandmarks&&drawConnectors(this.ctx,t.leftHandLandmarks,HAND_CONNECTIONS,{color:"#e74c3c",lineWidth:3}),t.rightHandLandmarks&&drawConnectors(this.ctx,t.rightHandLandmarks,HAND_CONNECTIONS,{color:"#3498db",lineWidth:3})}})())}gameLoop(){this.updateAndDraw(),this.loopHandle=requestAnimationFrame(()=>this.gameLoop())}destroy(){cancelAnimationFrame(this.loopHandle),console.log("TestDashboard destroyed")}}
+const scene=window.app.scenes.test=new TestDashboard;scene.setMode("hands");
+</script>..
+// \VSCode_Projects\MotionGameTemplate2\src\scenes\carry-game-scene.js 
+// src/scenes/carry-game-scene.js
+
+const loadScript = (src) => { /* ... 不變 ... */ return new Promise((resolve, reject) => { if (document.querySelector(`script[src="${src}"]`)) return resolve(); const script = document.createElement('script'); script.src = src; script.onload = () => resolve(); script.onerror = () => reject(new Error(`Failed to load script: ${src}`)); document.head.appendChild(script); }); };
+
+export class CarryGameScene {
+    constructor() {
+        this.loopHandle = null; this.resultsListener = null;
+        this.matterEngine = null; this.matterRunner = null;
+        this.latestResults = null;
+        this.skeletonCanvas = null; this.skeletonCtx = null;
+        
+        // === 核心修改 1：由單一 box 變為 boxes 數組 ===
+        this.boxes = [];
+        this.carryingBox = null; // 記錄當前正在搬運嘅箱
+        // ============================================
+        
+        this.hands = {
+            left: { x: 0, y: 0, isPinching: false, isTouchingBox: false },
+            right: { x: 0, y: 0, isPinching: false, isTouchingBox: false }
+        };
+    }
+
+    render() { /* ... 不變 ... */ return ` <style> .cg-scene { position: relative; width: 100vw; height: 100vh; overflow: hidden; background: linear-gradient(#34495e, #2c3e50); cursor: none; } .cg-scene #skeleton-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; opacity: 0.4; pointer-events: none; transform: scaleX(-1); } .cg-scene #game-canvas-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 2; } .cg-scene #info-panel { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); z-index: 3; color: white; font-family: monospace; font-size: 1.2em; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 8px; text-align: center; } </style> <div class="cg-scene"> <a class="back-button" data-scene-changer="launcher" data-motion-activatable> <svg viewBox="0 0 24 24"><path d="M20,11V13H8L13.5,18.5L12.08,19.92L4.16,12L12.08,4.08L13.5,5.5L8,11H20Z" /></svg> </a> <canvas id="skeleton-canvas"></canvas> <div id="game-canvas-container"></div> <div id="info-panel""> <p>用雙手同時「捏」實任何一個箱嚟搬運</p> <p>嘗試將佢哋疊高！</p> </div> </div> `; }
+
+    async init() {
+        await loadScript("https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js");
+        window.motionEngine.setMode('holistic'); window.motionEngine.outputCanvas.style.display = 'block';
+        this.gameCanvasContainer = document.getElementById('game-canvas-container');
+        this.skeletonCanvas = document.getElementById('skeleton-canvas'); this.skeletonCtx = this.skeletonCanvas.getContext('2d');
+        this.skeletonCanvas.width = window.innerWidth; this.skeletonCanvas.height = window.innerHeight;
+        this._setupPhysics(); this._bindEvents();
+        // === 核心修改 2：調用新嘅 resetBoxes 方法 ===
+        this.resetBoxes();
+        // ===========================================
+        this.gameLoop();
+    }
+
+    destroy() { /* ... 不變 ... */ if (this.loopHandle) cancelAnimationFrame(this.loopHandle); if (this.matterRunner) Matter.Runner.stop(this.matterRunner); if (this.matterEngine) Matter.Engine.clear(this.matterEngine); window.motionEngine.setMode('hands'); const removeListener = (listeners, handler) => { if (listeners && handler) { const index = listeners.indexOf(handler); if (index > -1) listeners.splice(index, 1); } }; removeListener(window.motionEngine.eventListeners.get('results-updated'), this.resultsListener); }
+    _setupPhysics() { /* ... 不變 ... */ const { Engine, Render, Runner, World, Bodies } = Matter; this.matterEngine = Engine.create(); this.matterRunner = Runner.create(); const renderer = Render.create({ element: this.gameCanvasContainer, engine: this.matterEngine, options: { width: window.innerWidth, height: window.innerHeight, wireframes: false, background: 'transparent' } }); this.matterEngine.world.gravity.y = 2; const w = window.innerWidth, h = window.innerHeight; const ground = Bodies.rectangle(w / 2, h - 30, w, 60, { isStatic: true, render: { fillStyle: '#95a5a6' } }); World.add(this.matterEngine.world, ground); Render.run(renderer); Runner.run(this.matterRunner, this.matterEngine); }
+    _bindEvents() { /* ... 不變 ... */ document.querySelector('.back-button[data-scene-changer]').addEventListener('click', (e) => window.sceneManager.loadScene(e.currentTarget.dataset.sceneChanger)); this.resultsListener = (results) => { this.latestResults = results; }; window.motionEngine.on('results-updated', this.resultsListener); }
+
+    // === 核心修改 3：創建多個箱子 ===
+    resetBoxes() {
+        // 清理舊箱子
+        this.boxes.forEach(box => Matter.Composite.remove(this.matterEngine.world, box));
+        this.boxes = [];
+        this.carryingBox = null;
+        
+        const boxSize = 120; // 縮小啲，易啲疊
+        const colors = ['#c0392b', '#16a085', '#2980b9']; // 紅、綠、藍
+        const startY = window.innerHeight - 100 - boxSize / 2;
+        const startX = window.innerWidth / 2 - 200;
+
+        for (let i = 0; i < 3; i++) {
+            const box = Matter.Bodies.rectangle(
+                startX + i * (boxSize + 50), 
+                startY, 
+                boxSize, boxSize, 
+                {
+                    density: 0.01,
+                    friction: 0.7, // 增加摩擦力，令堆疊更穩定
+                    restitution: 0.1, // 減少彈性
+                    render: { fillStyle: colors[i] }
+                }
+            );
+            this.boxes.push(box);
+            Matter.World.add(this.matterEngine.world, box);
+        }
+    }
+
+    updateHandsState() {
+        if (!this.latestResults) return;
+        const pointers = window.motionEngine.pointers;
+        ['left', 'right'].forEach(hand => {
+            const state = this.hands[hand];
+            const pointer = pointers.find(p => p.hand === hand);
+            
+            state.isTouchingBox = false; // 每幀重置
+            if (pointer && pointer.isVisible) {
+                state.x = (1 - pointer.x) * window.innerWidth;
+                state.y = pointer.y * window.innerHeight;
+                // 檢查手係咪掂到任何一個箱
+                if (Matter.Query.point(this.boxes, {x: state.x, y: state.y}).length > 0) {
+                    state.isTouchingBox = true;
+                }
+            }
+            
+            const landmarks = hand === 'left' ? this.latestResults.leftHandLandmarks : this.latestResults.rightHandLandmarks;
+            state.isPinching = window.isPinching ? window.isPinching(landmarks) : false;
+        });
+    }
+
+    // === 核心修改 4：重構 update 邏輯以處理多個目標 ===
+    update() {
+        this.updateHandsState();
+        
+        const leftHand = this.hands.left;
+        const rightHand = this.hands.right;
+
+        // 如果正在搬運
+        if (this.carryingBox) {
+            if (!leftHand.isPinching || !rightHand.isPinching) {
+                // 放手
+                this.carryingBox.render.fillStyle = this.carryingBox.originalColor;
+                Matter.Body.setStatic(this.carryingBox, false);
+                this.carryingBox = null;
+                return;
+            }
+            const centerX = (leftHand.x + rightHand.x) / 2;
+            const centerY = (leftHand.y + rightHand.y) / 2;
+            Matter.Body.setPosition(this.carryingBox, { x: centerX, y: centerY });
+            
+        } 
+        // 如果冇嘢搬緊，就檢查係咪可以抓取
+        else {
+            // 必須要兩隻手都捏合緊
+            if (leftHand.isPinching && rightHand.isPinching) {
+                // 搵出兩隻手同時掂到嘅箱
+                const leftTouchedBoxes = Matter.Query.point(this.boxes, {x: leftHand.x, y: leftHand.y});
+                const rightTouchedBoxes = Matter.Query.point(this.boxes, {x: rightHand.x, y: rightHand.y});
+
+                if (leftTouchedBoxes.length > 0 && rightTouchedBoxes.length > 0) {
+                    // 確保兩隻手掂到嘅係同一個箱
+                    const targetBox = leftTouchedBoxes.find(box => box === rightTouchedBoxes[0]);
+
+                    if (targetBox) {
+                        this.carryingBox = targetBox;
+                        this.carryingBox.originalColor = this.carryingBox.render.fillStyle; // 記住原來顏色
+                        this.carryingBox.render.fillStyle = '#2ecc71'; // 變綠色
+                        Matter.Body.setStatic(this.carryingBox, true);
+                    }
+                }
+            }
+        }
+    }
+
+    draw() { /* ... 不變 ... */ const w = this.skeletonCanvas.width; const h = this.skeletonCanvas.height; this.skeletonCtx.clearRect(0, 0, w, h); if (!this.latestResults) return; if (this.latestResults.image) { this.skeletonCtx.drawImage(this.latestResults.image, 0, 0, w, h); } const drawHand = (landmarks, color) => { if (landmarks) { drawConnectors(this.skeletonCtx, landmarks, HAND_CONNECTIONS, { color, lineWidth: 2 }); drawLandmarks(this.skeletonCtx, landmarks, { color, radius: 4 }); } }; drawHand(this.latestResults.leftHandLandmarks, '#00FFFF'); drawHand(this.latestResults.rightHandLandmarks, '#FFD700'); }
+    gameLoop() { /* ... 不變 ... */ this.update(); this.draw(); this.loopHandle = requestAnimationFrame(() => this.gameLoop()); }
+}..
+// \VSCode_Projects\MotionGameTemplate2\src\scenes\cup-knock-scene.js 
+// src/scenes/cup-knock-scene.js
+
+const loadScript = (src) => { return new Promise((resolve, reject) => { if (document.querySelector(`script[src="${src}"]`)) { return resolve(); } const script = document.createElement('script'); script.src = src; script.onload = () => resolve(); script.onerror = () => reject(new Error(`Failed to load script: ${src}`)); document.head.appendChild(script); }); };
+
+export class CupKnockScene {
+    constructor() { this.loopHandle = null; this.resultsListener = null; this.matterEngine = null; this.matterRunner = null; this.platform = null; this.score = 0; this.isGameOver = false; }
+    render() { return ` <style> .ck-scene { position: relative; width: 100vw; height: 100vh; overflow: hidden; cursor: none; } .ck-scene #skeleton-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; opacity: 0.25; pointer-events: none; transform: scaleX(-1); } .ck-scene #game-canvas-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; background: transparent; } .ck-scene #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 3; color: white; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; text-shadow: 2px 2px 4px rgba(0,0,0,0.7); pointer-events: none; } .ck-scene #score, .ck-scene #message { position: absolute; left: 50%; transform: translateX(-50%); font-size: 3em; font-weight: bold; } .ck-scene #score { top: 20px; } .ck-scene #message { top: 50%; transform: translate(-50%, -50%); font-size: 4em; display: none; } .ck-scene #reset-button { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); padding: 15px 30px; font-size: 1.2em; background-color: #ffd700; color: #1a1a1a; border: none; border-radius: 10px; z-index: 4; pointer-events: auto; } </style> <div class="ck-scene"> <a class="back-button" data-scene-changer="launcher" data-motion-activatable> <svg viewBox="0 0 24 24"><path d="M20,11V13H8L13.5,18.5L12.08,19.92L4.16,12L12.08,4.08L13.5,5.5L8,11H20Z" /></svg> </a> <canvas id="skeleton-canvas"></canvas> <div id="game-canvas-container"></div> <div id="ui-layer"> <div id="score">Score: 0</div> <div id="message"></div> </div> <button id="reset-button" data-motion-activatable>Reset Game</button> </div> `; }
+    async init() { try { await loadScript("https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"); window.motionEngine.setMode('hands'); window.motionEngine.outputCanvas.style.display = 'block'; this.skeletonCanvas = document.getElementById('skeleton-canvas'); this.skeletonCtx = this.skeletonCanvas.getContext('2d'); this.gameCanvasContainer = document.getElementById('game-canvas-container'); this.scoreElement = document.getElementById('score'); this.messageElement = document.getElementById('message'); this._setupPhysics(); this._bindEvents(); this.resetGame(); this.gameLoop(); } catch (error) { console.error("Failed to initialize CupKnockScene:", error); } }
+    destroy() { if (this.loopHandle) { cancelAnimationFrame(this.loopHandle); } if (this.matterRunner) { Matter.Runner.stop(this.matterRunner); } if (this.matterEngine) { Matter.Engine.clear(this.matterEngine); } const removeListener = (listeners, handler) => { if (listeners && handler) { const index = listeners.indexOf(handler); if (index > -1) listeners.splice(index, 1); } }; removeListener(window.motionEngine.eventListeners.get('results-updated'), this.resultsListener); }
+    _setupPhysics() { const { Engine, Render, Runner, World, Bodies } = Matter; this.matterEngine = Engine.create(); this.matterRunner = Runner.create(); const renderer = Render.create({ element: this.gameCanvasContainer, engine: this.matterEngine, options: { width: window.innerWidth, height: window.innerHeight, wireframes: false, background: 'transparent' } }); this.matterEngine.world.gravity.y = 1.2; const w = window.innerWidth, h = window.innerHeight; const wallOptions = { isStatic: true, render: { visible: false } }; World.add(this.matterEngine.world, [ Bodies.rectangle(w / 2, h + 30, w, 60, wallOptions), Bodies.rectangle(-30, h / 2, 60, h, wallOptions), Bodies.rectangle(w + 30, h / 2, 60, h, wallOptions) ]); const platformY = h - 250, platformWidth = 400; this.platform = Bodies.rectangle(w / 2, platformY, platformWidth, 20, { isStatic: true, render: { fillStyle: '#e0e0e0' }, label: 'platform' }); World.add(this.matterEngine.world, this.platform); Render.run(renderer); Runner.run(this.matterRunner, this.matterEngine); }
+    _bindEvents() { document.getElementById('reset-button').addEventListener('click', () => this.resetGame()); document.querySelector('.back-button[data-scene-changer]').addEventListener('click', (e) => { window.sceneManager.loadScene(e.currentTarget.dataset.sceneChanger); }); this.resultsListener = (results) => { const multiHandLandmarks = []; if (results.leftHandLandmarks) multiHandLandmarks.push(results.leftHandLandmarks); if (results.rightHandLandmarks) multiHandLandmarks.push(results.rightHandLandmarks); if (results.multiHandLandmarks) multiHandLandmarks.push(...results.multiHandLandmarks); if (results.image && multiHandLandmarks.length > 0) { this._drawSkeleton({ image: results.image, multiHandLandmarks }); } }; window.motionEngine.on('results-updated', this.resultsListener); }
+    _drawSkeleton(results) { this.skeletonCanvas.width = window.innerWidth; this.skeletonCanvas.height = window.innerHeight; this.skeletonCtx.clearRect(0, 0, this.skeletonCanvas.width, this.skeletonCanvas.height); if (results.image) { this.skeletonCtx.drawImage(results.image, 0, 0, this.skeletonCanvas.width, this.skeletonCanvas.height); } if (results.multiHandLandmarks) { for (const landmarks of results.multiHandLandmarks) { drawConnectors(this.skeletonCtx, landmarks, HAND_CONNECTIONS, { color: '#FFFFFF', lineWidth: 2 }); drawLandmarks(this.skeletonCtx, landmarks, { color: '#FFD700', radius: 4 }); } } }
+    resetGame() { this.isGameOver = false; this.updateScore(0); this.messageElement.style.display = 'none'; if (this.matterRunner.enabled === false) { this.matterRunner.enabled = true; } const world = this.matterEngine.world; Matter.Composite.allBodies(world).forEach(body => { if (!body.isStatic) { Matter.Composite.remove(world, body); } }); const cupWidth = 50, cupHeight = 70; const startY = this.platform.position.y - 10 - (cupHeight / 2); const startX = this.platform.position.x - (2 * cupWidth + 2 * 10); const cupOptions = { density: 0.005, friction: 0.8, restitution: 0.1, label: 'cup', sleepThreshold: 60 }; for (let i = 0; i < 5; i++) { const cupBody = Matter.Bodies.rectangle(startX + i * (cupWidth + 10), startY, cupWidth, cupHeight, { ...cupOptions, render: { fillStyle: '#4287f5' } }); cupBody.isScored = false; Matter.World.add(world, cupBody); } }
+    
+    // === 核心修改：遍歷新嘅 pointers 數組 ===
+    checkCollisions() {
+        const cups = Matter.Composite.allBodies(this.matterEngine.world).filter(b => b.label === 'cup');
+        for (const pointer of window.motionEngine.pointers) {
+            if (!pointer.isVisible) continue;
+            const pointerHitbox = { x: (1 - pointer.x) * window.innerWidth, y: pointer.y * window.innerHeight, radius: 15 };
+            for (const cup of cups) {
+                const distance = Math.hypot(pointerHitbox.x - cup.position.x, pointerHitbox.y - cup.position.y);
+                const collisionDistance = pointerHitbox.radius + (cup.bounds.max.x - cup.bounds.min.x) / 2;
+                if (distance < collisionDistance) {
+                    const direction = Matter.Vector.normalise(Matter.Vector.sub(cup.position, pointerHitbox));
+                    if (direction.x === 0 && direction.y === 0) direction.y = -1;
+                    Matter.Body.setVelocity(cup, { x: direction.x * 15, y: direction.y * 15 });
+                }
+            }
+        }
+    }
+    // ===================================
+
+    checkWinCondition() { if (this.isGameOver) return; let currentScore = 0; const platformTopY = this.platform.position.y - 10; Matter.Composite.allBodies(this.matterEngine.world).forEach(body => { if (body.label === 'cup') { const isTilted = Math.abs(body.angle) > Math.PI / 3; const hasFallenOff = body.position.y > platformTopY + 50; if (!body.isScored && (isTilted || hasFallenOff)) { body.isScored = true; body.render.fillStyle = '#888'; } if (body.isScored) { currentScore += 100; } } }); this.updateScore(currentScore); if (this.score >= 5 * 100) { this.isGameOver = true; this.messageElement.textContent = "You Win!"; this.messageElement.style.display = 'block'; this.matterRunner.enabled = false; } }
+    updateScore(newScore) { if (this.score !== newScore) { this.score = newScore; this.scoreElement.textContent = `Score: ${this.score}`; } }
+    gameLoop() { if (!this.isGameOver) { this.checkCollisions(); } this.checkWinCondition(); this.loopHandle = requestAnimationFrame(() => this.gameLoop()); }
+}..
+// \VSCode_Projects\MotionGameTemplate2\src\scenes\energy-flow-scene.js 
+// src/scenes/energy-flow-scene.js
+
+// === 核心修改：移除所有 import ===
+// import { getPalmCenterFromPose } from '../utils.js'; // 刪除呢句
+
+class PointSmoother { /* ... 不變 ... */ constructor(smoothingFactor = 0.8) { this.smoothingFactor = smoothingFactor; this.smoothedPoint = null; } update(rawPoint) { if (!rawPoint) { this.smoothedPoint = null; return null; } if (!this.smoothedPoint) { this.smoothedPoint = { ...rawPoint }; } else { this.smoothedPoint.x = this.smoothingFactor * this.smoothedPoint.x + (1 - this.smoothingFactor) * rawPoint.x; this.smoothedPoint.y = this.smoothingFactor * this.smoothedPoint.y + (1 - this.smoothingFactor) * rawPoint.y; } return this.smoothedPoint; } reset() { this.smoothedPoint = null; } }
+
+export class EnergyFlowScene {
+    // ...
+    updateHandPosition() {
+        if (this.gameState !== 'playing' || !this.latestPoseLandmarks) {
+            this.hand.isVisible = false;
+            return;
+        }
+        
+        // === 核心修改：直接調用全局函數 ===
+        const rawHandPoint = window.getPalmCenterFromPose(this.latestPoseLandmarks, 'left');
+        
+        const smoothedPos = this.handSmoother.update(rawHandPoint);
+        // ...後面不變
+        if (smoothedPos) { this.hand.isVisible = true; this.hand.prevPos = { ...this.hand.pos }; this.hand.pos.x = (1 - smoothedPos.x) * this.canvas.width; this.hand.pos.y = smoothedPos.y * this.canvas.height; this.hand.speed = Math.hypot(this.hand.pos.x - this.hand.prevPos.x, this.hand.pos.y - this.hand.prevPos.y); } else { this.hand.isVisible = false; this.hand.speed = 0; }
+    }
+    // ... 其他所有 EnergyFlowScene 嘅代碼同我上次提供嘅完全一樣，不變 ...
+    constructor() { this.loopHandle = null; this.resultsListener = null; this.canvas = null; this.ctx = null; this.ui = {}; this.latestPoseLandmarks = null; this.handSmoother = new PointSmoother(0.85); this.gameState = 'playing'; this.hand = { pos: { x: -100, y: -100 }, prevPos: { x: -100, y: -100 }, speed: 0, isVisible: false }; this.orb = { pos: { x: 0, y: 0 }, vel: { x: 0, y: 0 }, radius: 20, isAttached: false }; this.path = []; this.progress = 0; this.config = { maxSpeed: 15, attachDistance: 80, springConstant: 0.04, damping: 0.75, pathTolerance: 50 }; this.reattachCooldownTimer = null; }
+    render() { return ` <style> .ef-scene { position: relative; width: 100vw; height: 100vh; overflow: hidden; background-color: #0c0c1e; font-family: 'Segoe UI', sans-serif; } .ef-scene #game-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 2; } .ef-scene #game-ui { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 3; color: white; pointer-events: none; display: flex; flex-direction: column; align-items: center; } .ef-scene #progress-bar-container { width: 50%; height: 10px; background-color: rgba(255,255,255,0.2); margin-top: 20px; border-radius: 5px; } .ef-scene #progress-bar { width: 0%; height: 100%; background-color: #00f2ff; border-radius: 5px; transition: width 0.2s linear; } .ef-scene #message-container { flex-grow: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; } .ef-scene #message { font-size: 3em; font-weight: bold; text-shadow: 0 0 10px #00f2ff; } .ef-scene #restart-button { padding: 15px 30px; font-size: 1.5em; background-color: #ffd700; color: #1a1a1a; border: none; border-radius: 10px; cursor: pointer; margin-top: 20px; pointer-events: auto; display: none; } </style> <div class="ef-scene"> <a class="back-button" data-scene-changer="launcher" data-motion-activatable> <svg viewBox="0 0 24 24"><path d="M20,11V13H8L13.5,18.5L12.08,19.92L4.16,12L12.08,4.08L13.5,5.5L8,11H20Z" /></svg> </a> <canvas id="game-canvas"></canvas> <div id="game-ui"> <div id="progress-bar-container"><div id="progress-bar"></div></div> <div id="message-container"> <h2 id="message"></h2> <button id="restart-button" data-motion-activatable>Restart</button> </div> </div> </div> `; }
+    init() { window.motionEngine.setMode('pose'); window.motionEngine.setPointerHand('left'); window.motionEngine.outputCanvas.style.display = 'block'; this.canvas = document.getElementById('game-canvas'); this.ctx = this.canvas.getContext('2d'); this.canvas.width = window.innerWidth; this.canvas.height = window.innerHeight; this.ui.progressBar = document.getElementById('progress-bar'); this.ui.messageEl = document.getElementById('message'); this.ui.restartBtn = document.getElementById('restart-button'); this._bindEvents(); this.startGame(); }
+    destroy() { if (this.reattachCooldownTimer) clearTimeout(this.reattachCooldownTimer); console.log("Destroying EnergyFlowScene..."); if (this.loopHandle) cancelAnimationFrame(this.loopHandle); window.motionEngine.setPointerHand('right'); window.motionEngine.setMode('hands'); const removeListener = (listeners, handler) => { if (listeners && handler) { const index = listeners.indexOf(handler); if (index > -1) listeners.splice(index, 1); } }; removeListener(window.motionEngine.eventListeners.get('results-updated'), this.resultsListener); }
+    _bindEvents() { document.querySelector('.back-button[data-scene-changer]').addEventListener('click', (e) => window.sceneManager.loadScene(e.currentTarget.dataset.sceneChanger)); this.ui.restartBtn.addEventListener('click', () => this.startGame()); this.resultsListener = (results) => { this.latestPoseLandmarks = results.poseLandmarks; }; window.motionEngine.on('results-updated', this.resultsListener); }
+    startGame() { if (this.reattachCooldownTimer) clearTimeout(this.reattachCooldownTimer); this.gameState = 'playing'; this.hand = { pos: { x: -100, y: -100 }, prevPos: { x: -100, y: -100 }, speed: 0, isVisible: false }; this.handSmoother.reset(); this.definePath(); this.orb = { pos: { ...this.path[0] }, vel: { x: 0, y: 0 }, radius: 20, isAttached: false }; this.progress = 0; this.ui.messageEl.textContent = 'Guide the orb along the path'; this.ui.restartBtn.style.display = 'none'; setTimeout(() => { if (this.gameState === 'playing') this.ui.messageEl.textContent = '' }, 3000); if (!this.loopHandle) this.gameLoop(); }
+    definePath() { this.path = []; const w = this.canvas.width, h = this.canvas.height, segments = 200; for (let i = 0; i <= segments; i++) { const t = i / segments; const x = w * 0.1 + t * w * 0.8; const y = h / 2 + Math.sin(t * Math.PI * 2) * h * 0.25; this.path.push({ x, y }); } }
+    update() { if (this.gameState !== 'playing') return; this.updateHandPosition(); let closestDistToPath = Infinity; let closestSegment = 0; for (let i = 0; i < this.path.length; i++) { const dist = Math.hypot(this.orb.pos.x - this.path[i].x, this.orb.pos.y - this.path[i].y); if (dist < closestDistToPath) { closestDistToPath = dist; closestSegment = i; } } const distToHand = Math.hypot(this.hand.pos.x - this.orb.pos.x, this.hand.pos.y - this.orb.pos.y); const canReattach = this.reattachCooldownTimer === null; if (this.orb.isAttached) { if (this.hand.speed > this.config.maxSpeed || !this.hand.isVisible || closestDistToPath > this.config.pathTolerance * 1.5) { this.orb.isAttached = false; this.orb.vel.x = (this.hand.pos.x - this.hand.prevPos.x) * 0.5; this.orb.vel.y = (this.hand.pos.y - this.hand.prevPos.y) * 0.5; this.reattachCooldownTimer = setTimeout(() => { this.reattachCooldownTimer = null; }, 500); } } else { if (canReattach && this.hand.isVisible && this.hand.speed < 5 && distToHand < this.config.attachDistance && closestDistToPath < this.config.pathTolerance) { this.orb.isAttached = true; } else if (this.hand.isVisible && distToHand < this.config.attachDistance) { const pushForce = 0.2; const pushVectorX = (this.orb.pos.x - this.hand.pos.x) / distToHand; const pushVectorY = (this.orb.pos.y - this.hand.pos.y) / distToHand; this.orb.vel.x += pushVectorX * pushForce * this.hand.speed; this.orb.vel.y += pushVectorY * pushForce * this.hand.speed; } } if (this.orb.isAttached) { const forceX = (this.hand.pos.x - this.orb.pos.x) * this.config.springConstant; const forceY = (this.hand.pos.y - this.orb.pos.y) * this.config.springConstant; this.orb.vel.x = (this.orb.vel.x + forceX) * this.config.damping; this.orb.vel.y = (this.orb.vel.y + forceY) * this.config.damping; } else { this.orb.vel.x *= 0.98; this.orb.vel.y *= 0.98; } this.orb.pos.x += this.orb.vel.x; this.orb.pos.y += this.orb.vel.y; const r = this.orb.radius; if (this.orb.pos.x < r) { this.orb.pos.x = r; this.orb.vel.x *= -0.8; } if (this.orb.pos.x > this.canvas.width - r) { this.orb.pos.x = this.canvas.width - r; this.orb.vel.x *= -0.8; } if (this.orb.pos.y < r) { this.orb.pos.y = r; this.orb.vel.y *= -0.8; } if (this.orb.pos.y > this.canvas.height - r) { this.orb.pos.y = this.canvas.height - r; this.orb.vel.y *= -0.8; } if (this.orb.isAttached && closestDistToPath < this.config.pathTolerance) { const newProgress = (closestSegment / (this.path.length - 1)) * 100; if (newProgress > this.progress) this.progress = newProgress; } if (this.progress >= 100) { this.gameState = 'win'; this.ui.messageEl.textContent = 'Flow Complete!'; this.ui.restartBtn.style.display = 'block'; } }
+    draw() { this.ctx.fillStyle = '#0c0c1e'; this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height); if (this.latestPoseLandmarks) { this.ctx.save(); this.ctx.globalAlpha = 0.2; this.ctx.translate(this.canvas.width, 0); this.ctx.scale(-1, 1); drawConnectors(this.ctx, this.latestPoseLandmarks, POSE_CONNECTIONS, { color: 'white', lineWidth: 1 }); this.ctx.restore(); } this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)'; this.ctx.lineWidth = this.config.pathTolerance * 2; this.ctx.lineCap = 'round'; this.ctx.beginPath(); this.ctx.moveTo(this.path[0].x, this.path[0].y); for(let i = 1; i < this.path.length; i++) this.ctx.lineTo(this.path[i].x, this.path[i].y); this.ctx.stroke(); this.ctx.strokeStyle = 'rgba(0, 242, 255, 0.4)'; this.ctx.lineWidth = 4; this.ctx.stroke(); if (this.hand.isVisible) { this.ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'; this.ctx.beginPath(); this.ctx.arc(this.hand.pos.x, this.hand.pos.y, this.config.attachDistance, 0, 2 * Math.PI); this.ctx.fill(); } const orbColor = this.orb.isAttached ? '#00f2ff' : '#ff4d84'; const glowColor = this.orb.isAttached ? 'rgba(0, 242, 255, 0.5)' : 'rgba(255, 77, 132, 0.5)'; this.ctx.shadowColor = glowColor; this.ctx.shadowBlur = 30; this.ctx.fillStyle = orbColor; this.ctx.beginPath(); this.ctx.arc(this.orb.pos.x, this.orb.pos.y, this.orb.radius, 0, 2 * Math.PI); this.ctx.fill(); this.ctx.shadowBlur = 0; this.ui.progressBar.style.width = `${this.progress}%`; }
+    gameLoop() { this.update(); this.draw(); this.loopHandle = requestAnimationFrame(() => this.gameLoop()); }
+}..
+// \VSCode_Projects\MotionGameTemplate2\src\scenes\joint-painter-scene.js 
+// src/scenes/joint-painter-scene.js
+
+import { getPalmCenterFromPose } from '../motion-engine.js';
+class PointSmoother { constructor(smoothingFactor = 0.7) { this.smoothingFactor = smoothingFactor; this.smoothedPoint = null; } update(rawPoint) { if (!rawPoint) { this.smoothedPoint = null; return null; } if (!this.smoothedPoint) { this.smoothedPoint = { ...rawPoint }; } else { this.smoothedPoint.x = this.smoothingFactor * this.smoothedPoint.x + (1 - this.smoothingFactor) * rawPoint.x; this.smoothedPoint.y = this.smoothingFactor * this.smoothedPoint.y + (1 - this.smoothingFactor) * rawPoint.y; } return this.smoothedPoint; } reset() { this.smoothedPoint = null; } }
+
+export class JointPainterScene {
+    constructor() {
+        this.resultsListener = null;
+        this.drawingCtx = null; this.skeletonCtx = null;
+        
+        // === 修改：唔再用 joint index，而係用手嘅標識 ===
+        this.brushHand = 'left'; // 'left' or 'right'
+        // ============================================
+
+        this.lastBrushPosition = null; this.isDrawing = false;
+        this.brushSmoother = new PointSmoother(0.6);
+        this.latestPoseLandmarks = null;
+    }
+
+    render() {
+        return `
+            <style>
+                .jp-scene { position: relative; width: 100vw; height: 100vh; overflow: hidden; background-color: #1a1d22; }
+                .jp-scene #drawing-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 2; }
+                .jp-scene #skeleton-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 3; opacity: 0.5; transform: scaleX(-1); }
+                .jp-scene #controls { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); z-index: 4; background-color: rgba(0,0,0,0.5); padding: 10px; border-radius: 10px; display: flex; flex-wrap: wrap; gap: 10px; pointer-events: auto;}
+                .jp-scene .control-btn { padding: 10px 15px; font-size: 1em; background-color: #444; color: white; border: 2px solid transparent; border-radius: 8px; cursor: pointer; }
+                .jp-scene .control-btn.active { border-color: #ffd700; background-color: #666; }
+                .jp-scene #clear-btn { background-color: #c0392b; }
+            </style>
+            <div class="jp-scene">
+                <a class="back-button" data-scene-changer="launcher" data-motion-activatable>
+                    <svg viewBox="0 0 24 24"><path d="M20,11V13H8L13.5,18.5L12.08,19.92L4.16,12L12.08,4.08L13.5,5.5L8,11H20Z" /></svg>
+                </a>
+                <canvas id="drawing-canvas"></canvas>
+                <canvas id="skeleton-canvas"></canvas>
+                <div id="controls">
+                    <!-- === 修改：按鈕文字改為手掌 === -->
+                    <button id="brush-left-hand" class="control-btn active" data-motion-activatable>左手</button>
+                    <button id="brush-right-hand" class="control-btn" data-motion-activatable>右手</button>
+                    <button id="clear-btn" class="control-btn" data-motion-activatable>清除畫布</button>
+                </div>
+            </div>
+        `;
+    }
+
+    init() {
+        window.motionEngine.setMode('pose');
+        window.motionEngine.setPointerHand('left');
+        window.motionEngine.outputCanvas.style.display = 'block';
+
+        const drawingCanvas = document.getElementById('drawing-canvas'); const skeletonCanvas = document.getElementById('skeleton-canvas');
+        this.drawingCtx = drawingCanvas.getContext('2d'); this.skeletonCtx = skeletonCanvas.getContext('2d');
+        drawingCanvas.width = skeletonCanvas.width = window.innerWidth; drawingCanvas.height = skeletonCanvas.height = window.innerHeight;
+        this._bindEvents();
+    }
+
+    destroy() {
+        console.log("Destroying JointPainterScene...");
+        window.motionEngine.setPointerHand('right'); window.motionEngine.setMode('hands');
+        const removeListener = (listeners, handler) => { if (listeners && handler) { const index = listeners.indexOf(handler); if (index > -1) listeners.splice(index, 1); } };
+        removeListener(window.motionEngine.eventListeners.get('results-updated'), this.resultsListener);
+    }
+
+    _bindEvents() {
+        document.querySelector('.back-button[data-scene-changer]').addEventListener('click', (e) => window.sceneManager.loadScene(e.currentTarget.dataset.sceneChanger));
+
+        const setBrush = (hand, buttonId) => {
+            this.brushHand = hand;
+            document.querySelectorAll('#controls .control-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(buttonId).classList.add('active');
+            this.brushSmoother.reset(); this.isDrawing = false; this.lastBrushPosition = null;
+        };
+
+        document.getElementById('brush-left-hand').addEventListener('click', () => setBrush('left', 'brush-left-hand'));
+        document.getElementById('brush-right-hand').addEventListener('click', () => setBrush('right', 'brush-right-hand'));
+        document.getElementById('clear-btn').addEventListener('click', () => { this.drawingCtx.clearRect(0, 0, this.drawingCtx.canvas.width, this.drawingCtx.canvas.height); });
+        
+        this.resultsListener = (results) => { this.latestPoseLandmarks = results.poseLandmarks; this.onPoseResults(); };
+        window.motionEngine.on('results-updated', this.resultsListener);
+    }
+
+    // === 核心修改：用 getPalmCenterFromPose 估算畫筆位置 ===
+    onPoseResults() {
+        const w = this.skeletonCtx.canvas.width; const h = this.skeletonCtx.canvas.height;
+        this.skeletonCtx.clearRect(0, 0, w, h);
+
+        if (this.latestPoseLandmarks) {
+            drawConnectors(this.skeletonCtx, this.latestPoseLandmarks, POSE_CONNECTIONS, { color: 'white', lineWidth: 2 });
+            
+            // 調用公共輔助函數，獲取畫筆手嘅手掌中心
+            const rawBrushPoint = getPalmCenterFromPose(this.latestPoseLandmarks, this.brushHand);
+            
+            if (rawBrushPoint) {
+                const smoothedLandmark = this.brushSmoother.update(rawBrushPoint);
+                if (smoothedLandmark) {
+                    this.skeletonCtx.fillStyle = 'yellow'; this.skeletonCtx.beginPath();
+                    this.skeletonCtx.arc(smoothedLandmark.x * w, smoothedLandmark.y * h, 15, 0, 2 * Math.PI);
+                    this.skeletonCtx.fill();
+                    this.updateDrawing(smoothedLandmark);
+                }
+            } else {
+                this.isDrawing = false;
+                this.lastBrushPosition = null;
+            }
+        }
+    }
+
+    updateDrawing(landmark) {
+        const w = this.drawingCtx.canvas.width, h = this.drawingCtx.canvas.height;
+        const currentPos = { x: (1 - landmark.x) * w, y: landmark.y * h };
+        if (!this.isDrawing) {
+            this.isDrawing = true;
+        } else {
+            this.drawingCtx.strokeStyle = 'cyan'; this.drawingCtx.lineWidth = 10;
+            this.drawingCtx.lineCap = 'round'; this.drawingCtx.lineJoin = 'round';
+            this.drawingCtx.beginPath(); this.drawingCtx.moveTo(this.lastBrushPosition.x, this.lastBrushPosition.y);
+            this.drawingCtx.lineTo(currentPos.x, currentPos.y); this.drawingCtx.stroke();
+        }
+        this.lastBrushPosition = currentPos;
+    }
+}..
+// \VSCode_Projects\MotionGameTemplate2\src\scenes\launcher-scene.js 
+// src/scenes/launcher-scene.js
+export class LauncherScene {
+    constructor() {}
+
+    render() {
+        return `
+            <style>
+                .launcher-scene .container {
+                    /* 稍微調整 container，令佢喺大屏幕上唔會太闊 */
+                    max-width: 1600px;
+                    padding: 4vh 2vw;
+                }
+                .launcher-scene .launcher-grid {
+                    /* === 核心修改：直接改為 5x3 佈局 === */
+                    grid-template-columns: repeat(5, 1fr);
+                    grid-template-rows: repeat(3, 1fr);
+                    gap: 15px;
+                }
+                .launcher-scene .card h2 {
+                    font-size: 1.1em; /* 為更多卡片，再縮小啲字體 */
+                }
+                 .launcher-scene .tag {
+                    font-size: 0.7em;
+                }
+            </style>
+            <div class="launcher-scene">
+                <div class="container">
+                    <h1>Motion Games - Prototype Launcher</h1>
+                    <div class="launcher-grid">
+                        <!-- --- 所有舊遊戲，原封不動 --- -->
+                        <a data-scene="cup-knock" class="card" data-motion-activatable><div><h2>撞杯子</h2></div><div class="tags"><span class="tag">🖐️ Hands</span></div></a>
+                        <a data-scene="pose-wall" class="card" data-motion-activatable><div><h2>姿勢之牆</h2></div><div class="tags"><span class="tag">🚶 Pose</span></div></a>
+                        <a data-scene="magic-guardian" class="card" data-motion-activatable><div><h2>魔法守護者</h2></div><div class="tags"><span class="tag">🧍 Holistic</span></div></a>
+                        <a data-scene="joint-painter" class="card" data-motion-activatable><div><h2>關節繪畫</h2></div><div class="tags"><span class="tag">🚶 Pose</span></div></a>
+                        <a data-scene="path-of-balance" class="card" data-motion-activatable><div><h2>平衡之道</h2></div><div class="tags"><span class="tag">🚶 Pose</span></div></a>
+                        <a data-scene="motion-beat" class="card" data-motion-activatable><div><h2>動感節拍</h2></div><div class="tags"><span class="tag">🚶 Pose</span></div></a>
+                        <a data-scene="energy-flow" class="card" data-motion-activatable><div><h2>能量引導</h2></div><div class="tags"><span class="tag">🚶 Pose</span></div></a>
+                        <a data-scene="test" class="card" data-motion-activatable><div><h2>調試儀表板</h2></div><div class="tags"><span class="tag">⚙️ DEV</span></div></a>
+                        
+                        <!-- --- 所有原型，一個都唔少 --- -->
+                        <a data-scene="shape-deformer" class="card" data-motion-activatable style="border-color: #4CAF50;">
+                            <div><h2 style="color: #4CAF50;">[P] 形狀變形</h2></div>
+                            <div class="tags"><span class="tag">🤏 Pinch</span></div>
+                        </a>
+                        <a data-scene="throw-game" class="card" data-motion-activatable style="border-color: #e91e63;">
+                            <div><h2 style="color: #e91e63;">[P] 2D 投擲</h2></div>
+                            <div class="tags"><span class="tag">👋 Throw</span></div>
+                        </a>
+                        <a data-scene="carry-game" class="card" data-motion-activatable style="border-color: #9c27b0;">
+                            <div><h2 style="color: #9c27b0;">[P] 雙手搬運</h2></div>
+                            <div class="tags"><span class="tag">🙌 Carry</span></div>
+                        </a>
+                        <!-- 將其中一個 dashed-border div 改為以下 a 標籤 -->
+                        <a data-scene="ribbon-painter" class="card" data-motion-activatable style="border-color: #00bcd4;">
+                            <div><h2 style="color: #00bcd4;">[P] 能量絲帶</h2></div>
+                            <div class="tags"><span class="tag">🎨 Creative</span><span class="tag">🧍 Holistic</span></div>
+                        </a>                        
+                        <!-- --- 預留空位 --- -->
+                        <div class="card" style="background: #222; border-style: dashed;"></div>
+                        <div class="card" style="background: #222; border-style: dashed;"></div>
+                        <div class="card" style="background: #222; border-style: dashed;"></div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    init() {
+        window.motionEngine.setMode('holistic');
+        window.motionEngine.outputCanvas.style.display = 'block';
+        this.cards = document.querySelectorAll('.card[data-scene]');
+        this.cards.forEach(card => card.addEventListener('click', this.onCardClick));
+    }
+
+    onCardClick(event) {
+        event.preventDefault();
+        const sceneName = event.currentTarget.dataset.scene;
+        if (sceneName) {
+            window.sceneManager.loadScene(sceneName);
+        }
+    }
+
+    destroy() {
+        this.cards.forEach(card => {
+            card.removeEventListener('click', this.onCardClick);
+        });
+    }
+}..
+// \VSCode_Projects\MotionGameTemplate2\src\scenes\magic-guardian-scene.js 
+// src/scenes/magic-guardian-scene.js
+
+class GestureRecognizer { /* ... 不變 ... */ static getGesture(handLandmarks) { if (!handLandmarks) return 'none'; try { const wrist = handLandmarks[0]; const thumbTip = handLandmarks[4]; const indexTip = handLandmarks[8]; const middleTip = handLandmarks[12]; const ringTip = handLandmarks[16]; const pinkyTip = handLandmarks[20]; const isFist = this.distance(indexTip, wrist) < this.distance(handLandmarks[5], wrist) && this.distance(middleTip, wrist) < this.distance(handLandmarks[9], wrist) && this.distance(ringTip, wrist) < this.distance(handLandmarks[13], wrist) && this.distance(pinkyTip, wrist) < this.distance(handLandmarks[17], wrist); if (isFist) return 'fist'; const isFive = this.distance(thumbTip, pinkyTip) > 0.15 && this.distance(indexTip, wrist) > this.distance(handLandmarks[5], wrist); if (isFive) return 'open'; return 'none'; } catch (e) { return 'none'; } } static distance(p1, p2) { return Math.hypot(p1.x - p2.x, p1.y - p2.y); } }
+
+export class MagicGuardianScene {
+    constructor() { /* ... 不變 ... */ this.loopHandle = null; this.resultsListener = null; this.canvas = null; this.ctx = null; this.ui = {}; this.player = { bodyHitbox: { x: 0, y: 0, rx: 0, ry: 0 }, leftHand: { x: -100, y: -100, radius: 65, gesture: 'none' }, rightHand: { x: -100, y: -100, radius: 65, gesture: 'none' } }; this.score = 0; this.lives = 5; this.isGameOver = false; this.fireballs = []; this.magicOrbs = []; this.particles = []; this.spawnInterval = null; }
+    render() { /* ... 不變 ... */ return ` <style> .mg-scene { position: relative; width: 100vw; height: 100vh; overflow: hidden; background-color: #112; } .mg-scene #output-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; } .mg-scene #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 3; color: white; text-shadow: 2px 2px 4px black; pointer-events: none; } .mg-scene #game-stats { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 40px; font-size: 2em; font-weight: bold; } .mg-scene #game-over-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); z-index: 10; display: none; flex-direction: column; justify-content: center; align-items: center; pointer-events: auto; } .mg-scene #game-over-screen h2 { font-size: 5em; margin: 0; } .mg-scene #game-over-screen p { font-size: 1.5em; } .mg-scene #restart-button { padding: 15px 30px; font-size: 1.5em; background-color: #ffd700; color: #1a1a1a; border: none; border-radius: 10px; cursor: pointer; margin-top: 20px; } .mg-scene .screen-flash { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; pointer-events: none; opacity: 0; } .mg-scene .hit-flash { background-color: red; animation: flash 0.3s ease-out; } @keyframes flash { from { opacity: 0.7; } to { opacity: 0; } } </style> <div class="mg-scene"> <a class="back-button" data-scene-changer="launcher" data-motion-activatable> <svg viewBox="0 0 24 24"><path d="M20,11V13H8L13.5,18.5L12.08,19.92L4.16,12L12.08,4.08L13.5,5.5L8,11H20Z" /></svg> </a> <canvas id="output-canvas"></canvas> <div id="ui-layer"> <div id="game-stats"><div id="score">Score: 0</div><div id="lives">Lives: ❤️❤️❤️</div></div> </div> <div id="game-over-screen"> <h2>GAME OVER</h2><p id="final-score"></p> <button id="restart-button" data-motion-activatable>Restart Game</button> </div> <div id="screen-flash" class="screen-flash"></div> </div> `; }
+    init() { /* ... 不變 ... */ window.motionEngine.setMode('holistic'); window.motionEngine.outputCanvas.style.display = 'block'; window.motionEngine.setPointerHand('left'); this.canvas = document.getElementById('output-canvas'); this.ctx = this.canvas.getContext('2d'); this.canvas.width = window.innerWidth; this.canvas.height = window.innerHeight; this.ui.scoreEl = document.getElementById('score'); this.ui.livesEl = document.getElementById('lives'); this.ui.gameOverScreen = document.getElementById('game-over-screen'); this.ui.finalScoreEl = document.getElementById('final-score'); this.ui.restartBtn = document.getElementById('restart-button'); this.ui.screenFlashEl = document.getElementById('screen-flash'); this._bindEvents(); this.startGame(); }
+    destroy() { /* ... 不變 ... */ console.log("Destroying MagicGuardianScene..."); if (this.spawnInterval) clearInterval(this.spawnInterval); window.motionEngine.setPointerHand('right'); window.motionEngine.setMode('hands'); const removeListener = (listeners, handler) => { if (listeners && handler) { const index = listeners.indexOf(handler); if (index > -1) listeners.splice(index, 1); } }; removeListener(window.motionEngine.eventListeners.get('results-updated'), this.resultsListener); }
+    
+    _bindEvents() { /* ... 不變 ... */ document.querySelector('.back-button[data-scene-changer]').addEventListener('click', (e) => { window.sceneManager.loadScene(e.currentTarget.dataset.sceneChanger); }); this.ui.restartBtn.addEventListener('click', () => this.startGame()); this.resultsListener = (results) => { this.onResults(results); }; window.motionEngine.on('results-updated', this.resultsListener); }
+    onResults(results) { /* ... 不變 ... */ const w = this.canvas.width, h = this.canvas.height; this.ctx.save(); this.ctx.clearRect(0, 0, w, h); if (results.image) { this.ctx.translate(w, 0); this.ctx.scale(-1, 1); this.ctx.drawImage(results.image, 0, 0, w, h); this.ctx.restore(); } else { this.ctx.fillStyle = '#112'; this.ctx.fillRect(0, 0, w, h); this.ctx.restore(); } if (!this.isGameOver) { this.updatePlayerState(results); this.updateGameObjects(); this.checkCollisions(); } this.drawGameElements(); }
+    startGame() { /* ... 不變 ... */ this.score = 0; this.lives = 5; this.isGameOver = false; this.fireballs = []; this.magicOrbs = []; this.particles = []; this.updateUI(); this.ui.gameOverScreen.style.display = 'none'; if (this.spawnInterval) clearInterval(this.spawnInterval); this.spawnInterval = setInterval(() => { if (this.isGameOver) return; this.spawnFireball(); if (Math.random() < 0.4) this.spawnMagicOrb(); }, 1200); }
+
+    // === 核心修改：使用正確嘅坐標轉換 ===
+    updatePlayerState(results) {
+        const w = this.canvas.width, h = this.canvas.height;
+        // 呢個 helper function 依家係啱嘅，因為 results 入面嘅坐標都係 0-1
+        const getScreenCoord = (p) => p ? { x: (1 - p.x) * w, y: p.y * h } : null;
+
+        if (results.poseLandmarks) {
+            const [ls, rs, lh, rh] = [11, 12, 23, 24].map(i => results.poseLandmarks[i]);
+            if (ls && rs && lh && rh && ls.visibility > 0.6 && rh.visibility > 0.6) {
+                const lsPos = getScreenCoord(ls), rsPos = getScreenCoord(rs), lhPos = getScreenCoord(lh), rhPos = getScreenCoord(rh);
+                this.player.bodyHitbox.x = (lsPos.x + rsPos.x) / 2;
+                this.player.bodyHitbox.y = (lsPos.y + lhPos.y) / 2;
+                this.player.bodyHitbox.rx = Math.abs(lsPos.x - rsPos.x) / 2 * 0.8;
+                this.player.bodyHitbox.ry = Math.abs(lsPos.y - lhPos.y) / 2 * 0.9;
+            }
+        }
+        
+        const updateHand = (handSide, handLandmarks) => {
+            const hand = this.player[handSide];
+            hand.gesture = GestureRecognizer.getGesture(handLandmarks);
+            if (handLandmarks) {
+                const [wrist, indexMcp, pinkyMcp] = [0, 5, 17].map(i => handLandmarks[i]);
+                if (wrist && indexMcp && pinkyMcp) {
+                    const palmCenterX = (wrist.x + indexMcp.x + pinkyMcp.x) / 3;
+                    const palmCenterY = (wrist.y + indexMcp.y + pinkyMcp.y) / 3;
+                    // getScreenCoord 會處理鏡像同縮放
+                    const screenPos = getScreenCoord({x: palmCenterX, y: palmCenterY});
+                    if (screenPos) { hand.x = screenPos.x; hand.y = screenPos.y; }
+                }
+            }
+        };
+        updateHand('leftHand', results.leftHandLandmarks);
+        updateHand('rightHand', results.rightHandLandmarks);
+    }
+    // ======================================
+
+    // ... 後面所有嘅遊戲邏輯方法 (draw, update, spawn 等) 同之前一樣，不變 ...
+    drawGameElements() { const { bodyHitbox, leftHand, rightHand } = this.player; this.ctx.fillStyle = 'rgba(0, 255, 255, 0.2)'; this.ctx.strokeStyle = 'rgba(0, 255, 255, 0.7)'; this.ctx.lineWidth = 1; this.ctx.beginPath(); this.ctx.ellipse(bodyHitbox.x, bodyHitbox.y, bodyHitbox.rx, bodyHitbox.ry, 0, 0, 2 * Math.PI); this.ctx.fill(); this.ctx.stroke(); this.drawHandCircle(this.ctx, leftHand); this.drawHandCircle(this.ctx, rightHand); this.fireballs.forEach(fb => { this.ctx.fillStyle = 'orange'; this.ctx.beginPath(); this.ctx.arc(fb.x, fb.y, fb.radius, 0, 2*Math.PI); this.ctx.fill(); }); this.magicOrbs.forEach(orb => { this.ctx.fillStyle = 'cyan'; this.ctx.beginPath(); this.ctx.arc(orb.x, orb.y, orb.radius, 0, 2*Math.PI); this.ctx.fill(); }); this.particles.forEach(p => { this.ctx.fillStyle = p.color; this.ctx.beginPath(); this.ctx.arc(p.x, p.y, p.radius, 0, 2 * Math.PI); this.ctx.fill(); }); }
+    spawnObject(type) { const w = this.canvas.width, h = this.canvas.height; const radius = type === 'fireball' ? 25 : 30; let x, y; const side = Math.floor(Math.random() * 3); switch (side) { case 0: x = -radius; y = Math.random() * h * 0.9; break; case 1: x = w + radius; y = Math.random() * h * 0.9; break; case 2: x = Math.random() * w; y = -radius; break; } const targetX = w / 2 + (Math.random() - 0.5) * 400; const targetY = h / 2 + (Math.random() - 0.5) * 300; const angle = Math.atan2(targetY - y, targetX - x); const speed = type === 'fireball' ? (2 + Math.random() * 2) : (1.5 + Math.random()); return { x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, radius, type }; }
+    spawnFireball() { this.fireballs.push(this.spawnObject('fireball')); }
+    spawnMagicOrb() { this.magicOrbs.push(this.spawnObject('magicOrb')); }
+    createExplosion(x, y, color, count = 20) { for (let i = 0; i < count; i++) { const angle = Math.random() * Math.PI * 2; const speed = 2 + Math.random() * 4; this.particles.push({ x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, radius: 2 + Math.random() * 3, life: 30 + Math.random() * 30, color }); } }
+    updateGameObjects() { const move = (obj) => { obj.x += obj.vx; obj.y += obj.vy; }; this.fireballs.forEach(move); this.magicOrbs.forEach(move); this.particles.forEach(p => { move(p); p.life--; p.radius *= 0.98; }); const onScreen = (obj) => obj.x > -50 && obj.x < this.canvas.width + 50 && obj.y > -50 && obj.y < this.canvas.height + 50; this.fireballs = this.fireballs.filter(onScreen); this.magicOrbs = this.magicOrbs.filter(onScreen); this.particles = this.particles.filter(p => p.life > 0); }
+    checkCollisions() { const isColliding = (c1, c2) => Math.hypot(c1.x - c2.x, c1.y - c2.y) < c1.radius + c2.radius; const isEllipseColliding = (e, c) => ((c.x - e.x) / (e.rx + c.radius)) ** 2 + ((c.y - e.y) / (e.ry + c.radius)) ** 2 < 1; for (let i = this.fireballs.length - 1; i >= 0; i--) { const fb = this.fireballs[i]; const leftHandDestroy = this.player.leftHand.gesture === 'fist' && isColliding(this.player.leftHand, fb); const rightHandDestroy = this.player.rightHand.gesture === 'fist' && isColliding(this.player.rightHand, fb); if (leftHandDestroy || rightHandDestroy) { this.score += 20; this.createExplosion(fb.x, fb.y, 'orange'); this.fireballs.splice(i, 1); this.updateUI(); } else if (isEllipseColliding(this.player.bodyHitbox, fb)) { this.lives--; this.createExplosion(fb.x, fb.y, 'red'); this.fireballs.splice(i, 1); this.updateUI(); this.ui.screenFlashEl.className = 'mg-scene screen-flash hit-flash'; setTimeout(() => this.ui.screenFlashEl.className = 'mg-scene screen-flash', 300); if (this.lives <= 0) { this.gameOver(); break; } } } for (let i = this.magicOrbs.length - 1; i >= 0; i--) { const orb = this.magicOrbs[i]; const leftHandCollect = this.player.leftHand.gesture === 'open' && isColliding(this.player.leftHand, orb); const rightHandCollect = this.player.rightHand.gesture === 'open' && isColliding(this.player.rightHand, orb); if (leftHandCollect || rightHandCollect) { this.score += 100; this.createExplosion(orb.x, orb.y, 'cyan'); this.magicOrbs.splice(i, 1); this.updateUI(); } } }
+    gameOver() { this.isGameOver = true; this.ui.finalScoreEl.textContent = `Your Score: ${this.score}`; this.ui.gameOverScreen.style.display = 'flex'; }
+    updateUI() { this.ui.scoreEl.textContent = `Score: ${this.score}`; this.ui.livesEl.textContent = `Lives: ${'❤️'.repeat(Math.max(0, this.lives))}`; }
+    drawHandCircle(ctx, hand) { let color = 'rgba(100,100,100,0.5)', glowColor = 'transparent', strokeColor = 'rgba(200,200,200,0.7)'; if (hand.gesture === 'open') { color = 'rgba(0, 176, 255, 0.8)'; glowColor = '#00B0FF'; } else if (hand.gesture === 'fist') { color = 'rgba(255, 100, 0, 0.8)'; glowColor = '#FF8C00'; strokeColor = '#FFD700'; } ctx.shadowColor = glowColor; ctx.shadowBlur = hand.gesture !== 'none' ? 20 : 0; ctx.fillStyle = color; ctx.beginPath(); ctx.arc(hand.x, hand.y, hand.radius, 0, 2 * Math.PI); ctx.fill(); ctx.shadowBlur = 0; if (hand.gesture === 'fist') { ctx.strokeStyle = strokeColor; ctx.lineWidth = 4; ctx.stroke(); } }
+}..
+// \VSCode_Projects\MotionGameTemplate2\src\scenes\motion-beat-scene.js 
+// src/scenes/motion-beat-scene.js
+
+class PointSmoother { /* ... 不變 ... */ constructor(smoothingFactor = 0.8) { this.smoothingFactor = smoothingFactor; this.smoothedPoint = null; } update(rawPoint) { if (!rawPoint) return this.smoothedPoint; if (!this.smoothedPoint) { this.smoothedPoint = { ...rawPoint }; } else { this.smoothedPoint.x = this.smoothingFactor * this.smoothedPoint.x + (1 - this.smoothingFactor) * rawPoint.x; this.smoothedPoint.y = this.smoothingFactor * this.smoothedPoint.y + (1 - this.smoothingFactor) * rawPoint.y; } return this.smoothedPoint; } reset() { this.smoothedPoint = null; } }
+
+export class MotionBeatScene {
+    constructor() { /* ... 不變 ... */ this.loopHandle = null; this.resultsListener = null; this.canvas = null; this.ctx = null; this.ui = {}; this.limbs = { LEFT_HAND:  { name: '左手', poseIndex: [15, 17, 19], x: 0.25, y: 0.4, color: '#3498db', radius: 50 }, RIGHT_HAND: { name: '右手', poseIndex: [16, 18, 20], x: 0.75, y: 0.4, color: '#e74c3c', radius: 50 }, LEFT_FOOT:  { name: '左腳', poseIndex: [27, 29], x: 0.35, y: 0.8, color: '#f1c40f', radius: 60 }, RIGHT_FOOT: { name: '右腳', poseIndex: [28, 30], x: 0.65, y: 0.8, color: '#2ecc71', radius: 60 } }; this.limbPositions = {}; this.notes = []; this.particles = []; this.score = 0; this.combo = 0; this.spawnInterval = null; this.latestPoseLandmarks = null; this.limbSmoothers = { LEFT_HAND: new PointSmoother(0.6), RIGHT_HAND: new PointSmoother(0.6), LEFT_FOOT: new PointSmoother(0.6), RIGHT_FOOT: new PointSmoother(0.6), }; }
+    render() { /* ... 不變 ... */ return ` <style> .mb-scene { position: relative; width: 100vw; height: 100vh; overflow: hidden; background-color: #0c0c1e; } .mb-scene #game-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 2; } .mb-scene #ui-layer { position: absolute; top: 20px; right: 20px; z-index: 3; color: white; text-shadow: 2px 2px 4px black; text-align: right; pointer-events: none; } .mb-scene #score { font-size: 3em; font-weight: bold; } .mb-scene #combo { font-size: 1.5em; color: #ffd700; height: 1.5em; } </style> <div class="mb-scene"> <a class="back-button" data-scene-changer="launcher" data-motion-activatable> <svg viewBox="0 0 24 24"><path d="M20,11V13H8L13.5,18.5L12.08,19.92L4.16,12L12.08,4.08L13.5,5.5L8,11H20Z" /></svg> </a> <canvas id="game-canvas"></canvas> <div id="ui-layer"> <div id="score">0</div> <div id="combo"></div> </div> </div> `; }
+    init() { /* ... 不變 ... */ window.motionEngine.setMode('pose'); window.motionEngine.setPointerHand('left'); window.motionEngine.outputCanvas.style.display = 'block'; this.canvas = document.getElementById('game-canvas'); this.ctx = this.canvas.getContext('2d'); this.canvas.width = window.innerWidth; this.canvas.height = window.innerHeight; this.ui.scoreEl = document.getElementById('score'); this.ui.comboEl = document.getElementById('combo'); for (const key in this.limbs) { const limb = this.limbs[key]; limb.screenX = limb.x * this.canvas.width; limb.screenY = limb.y * this.canvas.height; this.limbPositions[key] = { x: -1000, y: -1000 }; } this._bindEvents(); this.startGame(); }
+    destroy() { /* ... 不變 ... */ console.log("Destroying MotionBeatScene..."); if (this.loopHandle) cancelAnimationFrame(this.loopHandle); if (this.spawnInterval) clearInterval(this.spawnInterval); window.motionEngine.setPointerHand('right'); window.motionEngine.setMode('hands'); const removeListener = (listeners, handler) => { if (listeners && handler) { const index = listeners.indexOf(handler); if (index > -1) listeners.splice(index, 1); } }; removeListener(window.motionEngine.eventListeners.get('results-updated'), this.resultsListener); }
+    _bindEvents() { /* ... 不變 ... */ document.querySelector('.back-button[data-scene-changer]').addEventListener('click', (e) => { window.sceneManager.loadScene(e.currentTarget.dataset.sceneChanger); }); this.resultsListener = (results) => { this.latestPoseLandmarks = results.poseLandmarks; }; window.motionEngine.on('results-updated', this.resultsListener); }
+    startGame() { /* ... 不變 ... */ this.score = 0; this.combo = 0; this.notes = []; this.particles = []; this.updateUI(); if (this.spawnInterval) clearInterval(this.spawnInterval); this.spawnInterval = setInterval(() => this.spawnNote(), 1000); Object.values(this.limbSmoothers).forEach(s => s.reset()); if (!this.loopHandle) this.gameLoop(); }
+
+    // === 核心修改：修正坐標轉換 ===
+    updateLimbPositions() {
+        if (!this.latestPoseLandmarks) return;
+        
+        const w = this.canvas.width, h = this.canvas.height;
+        const landmarks = this.latestPoseLandmarks;
+
+        for (const key in this.limbs) {
+            const limbConfig = this.limbs[key];
+            let rawPoint = null; // 0-1 坐標
+
+            if (key.includes('HAND')) {
+                const [wrist, pinky, index] = limbConfig.poseIndex.map(i => landmarks[i]);
+                if (wrist && pinky && index && wrist.visibility > 0.5) {
+                    rawPoint = { 
+                        x: (wrist.x + pinky.x + index.x) / 3,
+                        y: (wrist.y + pinky.y + index.y) / 3
+                    };
+                }
+            } else { // 腳
+                const [ankle, heel] = limbConfig.poseIndex.map(i => landmarks[i]);
+                if (ankle && heel && ankle.visibility > 0.5) {
+                    const vecX = ankle.x - heel.x;
+                    const vecY = ankle.y - heel.y;
+                    rawPoint = { 
+                        x: ankle.x + vecX * 0.8,
+                        y: ankle.y + vecY * 0.8
+                    };
+                }
+            }
+            
+            const smoothedPoint = this.limbSmoothers[key].update(rawPoint);
+
+            if (smoothedPoint) {
+                // 喺呢度先做屏幕坐標轉換
+                this.limbPositions[key].x = (1 - smoothedPoint.x) * w;
+                this.limbPositions[key].y = smoothedPoint.y * h;
+            } else {
+                this.limbPositions[key].x = -1000;
+            }
+        }
+    }
+    // ======================================
+    
+    spawnNote() { /* ... 不變 ... */ const limbKeys = Object.keys(this.limbs); const randomLimbKey = limbKeys[Math.floor(Math.random() * limbKeys.length)]; this.notes.push({ target: randomLimbKey, z: 100, speed: 1.2, hit: false, missed: false }); }
+    update() { /* ... 不變 ... */ this.updateLimbPositions(); for (let i = this.notes.length - 1; i >= 0; i--) { const note = this.notes[i]; note.z -= note.speed; if (note.z < 15 && note.z > -15 && !note.hit && !note.missed) { const targetLimb = this.limbs[note.target]; const limbPos = this.limbPositions[note.target]; const distance = Math.hypot(limbPos.x - targetLimb.screenX, limbPos.y - targetLimb.screenY); if (distance < targetLimb.radius) { note.hit = true; this.score += 10 + this.combo * 5; this.combo++; this.createExplosion(targetLimb.screenX, targetLimb.screenY, targetLimb.color); this.updateUI(); } } if (note.z < -20) { if (!note.hit) { this.combo = 0; note.missed = true; this.updateUI(); } this.notes.splice(i, 1); } } this.particles.forEach(p => { p.life--; p.radius *= 0.95; p.x += p.vx; p.y += p.vy; }); this.particles = this.particles.filter(p => p.life > 0); }
+
+    // === 核心修改：加入骨架繪製 ===
+    draw() {
+        const w = this.canvas.width, h = this.canvas.height;
+        this.ctx.clearRect(0, 0, w, h);
+
+        // 繪製骨架 (用於調試)
+        if (this.latestPoseLandmarks) {
+            this.ctx.save();
+            this.ctx.globalAlpha = 0.3; // 令骨架半透明
+            this.ctx.translate(w, 0); this.ctx.scale(-1, 1); // 鏡像
+            drawConnectors(this.ctx, this.latestPoseLandmarks, POSE_CONNECTIONS, { color: 'white', lineWidth: 2 });
+            this.ctx.restore();
+        }
+        
+        // 畫四肢嘅目標圈 ... (後面不變)
+        for (const key in this.limbs) { const limb = this.limbs[key]; this.ctx.strokeStyle = limb.color; this.ctx.lineWidth = 4; this.ctx.globalAlpha = 0.5; this.ctx.beginPath(); this.ctx.arc(limb.screenX, limb.screenY, limb.radius, 0, 2 * Math.PI); this.ctx.stroke(); this.ctx.globalAlpha = 1; }
+        for (const key in this.limbPositions) { const limb = this.limbs[key]; const pos = this.limbPositions[key]; this.ctx.fillStyle = limb.color; this.ctx.beginPath(); this.ctx.arc(pos.x, pos.y, 25, 0, 2 * Math.PI); this.ctx.fill(); }
+        this.notes.sort((a,b) => b.z - a.z); for (const note of this.notes) { if (note.hit) continue; const target = this.limbs[note.target]; const scale = Math.max(0, (100 - note.z) / 100); const size = target.radius * 1.5 * scale; this.ctx.save(); this.ctx.translate(target.screenX, target.screenY); this.ctx.rotate(scale * Math.PI); this.ctx.fillStyle = target.color; this.ctx.globalAlpha = scale * 1.5; this.ctx.fillRect(-size / 2, -size / 2, size, size); this.ctx.restore(); }
+        this.particles.forEach(p => { this.ctx.fillStyle = p.color; this.ctx.globalAlpha = p.life / 40; this.ctx.beginPath(); this.ctx.arc(p.x, p.y, p.radius, 0, 2 * Math.PI); this.ctx.fill(); }); this.ctx.globalAlpha = 1;
+    }
+    // ======================================
+
+    createExplosion(x, y, color) { /* ... 不變 ... */ for (let i = 0; i < 20; i++) { const angle = Math.random() * Math.PI * 2; const speed = 2 + Math.random() * 5; this.particles.push({ x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, radius: 2 + Math.random() * 3, life: 40, color }); } }
+    updateUI() { /* ... 不變 ... */ this.ui.scoreEl.textContent = this.score; this.ui.comboEl.textContent = this.combo > 1 ? `x${this.combo} Combo!` : ''; }
+    gameLoop() { /* ... 不變 ... */ this.update(); this.draw(); this.loopHandle = requestAnimationFrame(() => this.gameLoop()); }
+}..
+// \VSCode_Projects\MotionGameTemplate2\src\scenes\path-of-balance-scene.js 
+// src/scenes/path-of-balance-scene.js
+
+export class PathOfBalanceScene {
+    constructor() {
+        this.loopHandle = null;
+        this.resultsListener = null;
+        this.latestPoseLandmarks = null;
+        this.canvas = null; this.ctx = null; this.ui = {};
+        
+        // Game state
+        this.gameState = 'idle';
+        this.player = { x: 0, balanceForce: 0, progress: 0, width: 60 };
+        this.balanceAngle = 0;
+        this.isStepping = false;
+        this.pathTotalLength = 2000;
+        this.pathOffset = 0;
+    }
+
+    render() {
+        return `
+            <style>
+                .pob-scene { position: relative; width: 100vw; height: 100vh; overflow: hidden; background-color: #34495e; font-family: 'Segoe UI', sans-serif; }
+                .pob-scene #game-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 2; }
+                .pob-scene #game-ui { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 3; pointer-events: none; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; color: white; text-shadow: 2px 2px 4px black; }
+                .pob-scene #message { font-size: 4em; font-weight: bold; }
+                .pob-scene #restart-button { padding: 15px 30px; font-size: 1.5em; background-color: #ffd700; color: #1a1a1a; border: none; border-radius: 10px; cursor: pointer; margin-top: 20px; pointer-events: auto; display: none; }
+                .pob-scene #progress-bar-container { position: absolute; top: 80px; width: 50%; height: 20px; background-color: rgba(0,0,0,0.5); border-radius: 10px; }
+                .pob-scene #progress-bar { width: 0%; height: 100%; background-color: #2ecc71; border-radius: 10px; }
+            </style>
+            <div class="pob-scene">
+                <a class="back-button" data-scene-changer="launcher" data-motion-activatable>
+                    <svg viewBox="0 0 24 24"><path d="M20,11V13H8L13.5,18.5L12.08,19.92L4.16,12L12.08,4.08L13.5,5.5L8,11H20Z" /></svg>
+                </a>
+                <canvas id="game-canvas"></canvas>
+                <div id="game-ui">
+                    <div id="progress-bar-container"><div id="progress-bar"></div></div>
+                    <h2 id="message"></h2>
+                    <button id="restart-button" data-motion-activatable>Restart</button>
+                </div>
+            </div>
+        `;
+    }
+
+    init() {
+        window.motionEngine.setMode('pose');
+        window.motionEngine.setPointerHand('left');
+        window.motionEngine.outputCanvas.style.display = 'block';
+
+        this.canvas = document.getElementById('game-canvas'); this.ctx = this.canvas.getContext('2d');
+        this.canvas.width = window.innerWidth; this.canvas.height = window.innerHeight;
+        this.ui.messageEl = document.getElementById('message');
+        this.ui.restartBtn = document.getElementById('restart-button');
+        this.ui.progressBar = document.getElementById('progress-bar');
+        
+        this._bindEvents();
+        this.startGame();
+    }
+
+    destroy() {
+        console.log("Destroying PathOfBalanceScene...");
+        if (this.loopHandle) cancelAnimationFrame(this.loopHandle);
+        window.motionEngine.setPointerHand('right');
+        window.motionEngine.setMode('hands');
+        const removeListener = (listeners, handler) => { if (listeners && handler) { const index = listeners.indexOf(handler); if (index > -1) listeners.splice(index, 1); } };
+        removeListener(window.motionEngine.eventListeners.get('results-updated'), this.resultsListener);
+    }
+
+    _bindEvents() {
+        document.querySelector('.back-button[data-scene-changer]').addEventListener('click', (e) => window.sceneManager.loadScene(e.currentTarget.dataset.sceneChanger));
+        this.ui.restartBtn.addEventListener('click', () => this.startGame());
+        this.resultsListener = (results) => { this.latestPoseLandmarks = results.poseLandmarks; };
+        window.motionEngine.on('results-updated', this.resultsListener);
+    }
+
+    startGame() {
+        this.player = { x: this.canvas.width / 2, balanceForce: 0, progress: 0, width: 60 };
+        this.balanceAngle = 0; this.isStepping = false;
+        this.pathOffset = 0;
+        this.gameState = 'playing';
+        this.ui.messageEl.textContent = '';
+        this.ui.restartBtn.style.display = 'none';
+        if (!this.loopHandle) this.gameLoop();
+    }
+
+    update() {
+        if (this.gameState !== 'playing') return;
+        
+        // --- 核心遊戲邏輯 ---
+        if (this.latestPoseLandmarks) {
+            const landmarks = this.latestPoseLandmarks;
+            // Balance
+            const [ls, rs, lh, rh] = [11, 12, 23, 24].map(i => landmarks[i]);
+            if (ls && rs && lh && rh && ls.visibility > 0.5 && rs.visibility > 0.5) {
+                const shoulderMid = { x: (ls.x + rs.x) / 2, y: (ls.y + rs.y) / 2 };
+                const hipMid = { x: (lh.x + rh.x) / 2, y: (lh.y + rh.y) / 2 };
+                const angleRad = Math.atan2(shoulderMid.y - hipMid.y, shoulderMid.x - hipMid.x);
+                this.balanceAngle = (angleRad * 180 / Math.PI) + 90;
+                this.player.balanceForce = this.balanceAngle * -0.25;
+            }
+            // Stepping
+            const [lk, rk] = [25, 26].map(i => landmarks[i]);
+            if (lk && rk && lh && rh && lk.visibility > 0.5 && rk.visibility > 0.5) {
+                const hipHeight = (lh.y + rh.y) / 2;
+                const leftKneeStepped = lk.y < hipHeight - 0.05;
+                const rightKneeStepped = rk.y < hipHeight - 0.05;
+                if ((leftKneeStepped || rightKneeStepped) && !this.isStepping) {
+                    this.isStepping = true;
+                    this.pathOffset += 25;
+                    this.player.progress = (this.pathOffset / this.pathTotalLength) * 100;
+                } else if (!leftKneeStepped && !rightKneeStepped) {
+                    this.isStepping = false;
+                }
+            }
+        }
+        // --- 邏輯結束 ---
+        
+        this.player.x += this.player.balanceForce;
+        const w = this.canvas.width, h = this.canvas.height;
+        const playerVisualY = h * 0.9, horizonY = h * 0.6;
+        const pathWidthStart = w * 1.5, pathWidthEnd = w * 0.05;
+        const playerDepthRatio = (playerVisualY - horizonY) / (h - horizonY);
+        const pathWidthAtPlayer = pathWidthEnd + (pathWidthStart - pathWidthEnd) * playerDepthRatio;
+        const pathLeftEdge = w/2 - pathWidthAtPlayer/2, pathRightEdge = w/2 + pathWidthAtPlayer/2;
+        const playerLeftEdge = this.player.x - this.player.width / 2, playerRightEdge = this.player.x + this.player.width / 2;
+        
+        if (playerLeftEdge < pathLeftEdge || playerRightEdge > pathRightEdge) {
+            this.gameState = 'gameover';
+            this.ui.messageEl.textContent = 'You Fell!';
+            this.ui.restartBtn.style.display = 'block';
+        }
+        if (this.player.progress >= 100) {
+            this.gameState = 'win';
+            this.ui.messageEl.textContent = 'You Reached the End!';
+            this.ui.restartBtn.style.display = 'block';
+        }
+    }
+    
+    draw() {
+        const w = this.canvas.width, h = this.canvas.height;
+        this.ctx.clearRect(0, 0, w, h);
+        this.ctx.fillStyle = '#2c3e50'; this.ctx.fillRect(0, 0, w, h);
+        
+        // 畫路
+        const horizonY = h * 0.6, pathWidthStart = w * 1.5, pathWidthEnd = w * 0.05;
+        this.ctx.beginPath(); this.ctx.moveTo(w/2-pathWidthEnd/2, horizonY); this.ctx.lineTo(w/2+pathWidthEnd/2, horizonY); this.ctx.lineTo(w/2+pathWidthStart/2, h); this.ctx.lineTo(w/2-pathWidthStart/2, h); this.ctx.closePath(); this.ctx.fillStyle = '#95a5a6'; this.ctx.fill();
+        this.ctx.strokeStyle = '#7f8c8d'; this.ctx.lineWidth = 5;
+        const lineSpacing = 50, numLines = 20;
+        for(let i = 0; i < numLines; i++) {
+            const lineWorldY = (i * lineSpacing + this.pathOffset) % (numLines * lineSpacing);
+            const lineScreenRatio = lineWorldY / (numLines * lineSpacing);
+            const y = horizonY + (h - horizonY) * lineScreenRatio;
+            const width = pathWidthEnd + (pathWidthStart - pathWidthEnd) * lineScreenRatio;
+            this.ctx.beginPath(); this.ctx.moveTo(w/2 - width/2, y); this.ctx.lineTo(w/2 + width/2, y); this.ctx.stroke();
+        }
+        
+        // 畫玩家（火柴人）
+        const playerBaseY = h * 0.9;
+        this.ctx.save(); this.ctx.translate(this.player.x, playerBaseY); this.ctx.rotate(this.player.balanceForce * 0.05);
+        this.ctx.strokeStyle = '#ffd700'; this.ctx.lineWidth = 8; this.ctx.lineCap = 'round';
+        this.ctx.beginPath(); this.ctx.moveTo(0, 0); this.ctx.lineTo(0, -50); this.ctx.stroke(); // body
+        this.ctx.beginPath(); this.ctx.arc(0, -65, 15, 0, Math.PI * 2); this.ctx.stroke(); // head
+        this.ctx.beginPath(); this.ctx.moveTo(0, -40); this.ctx.lineTo(-30, -20); this.ctx.stroke(); // left arm
+        this.ctx.beginPath(); this.ctx.moveTo(0, -40); this.ctx.lineTo(30, -20); this.ctx.stroke(); // right arm
+        const stepOffset = this.isStepping ? 20 : 0;
+        this.ctx.beginPath(); this.ctx.moveTo(0, 0); this.ctx.lineTo(-20, 30 + stepOffset); this.ctx.stroke(); // left leg
+        this.ctx.beginPath(); this.ctx.moveTo(0, 0); this.ctx.lineTo(20, 30 - stepOffset); this.ctx.stroke(); // right leg
+        this.ctx.restore();
+        
+        this.ui.progressBar.style.width = `${this.player.progress}%`;
+    }
+    
+    gameLoop() {
+        this.update();
+        this.draw();
+        this.loopHandle = requestAnimationFrame(() => this.gameLoop());
+    }
+}..
+// \VSCode_Projects\MotionGameTemplate2\src\scenes\pose-wall-scene.js 
+// src/scenes/pose-wall-scene.js
+
+// --- Helper classes 同數據 (不變) ---
+class VectorUtils { static getAngle(p1, p2, p3) { if (!p1 || !p2 || !p3) return 0; const a = Math.hypot(p1.x - p2.x, p1.y - p2.y); const b = Math.hypot(p3.x - p2.x, p3.y - p2.y); const c = Math.hypot(p3.x - p1.x, p3.y - p1.y); if (a === 0 || b === 0) return 0; let angle = Math.acos((a * a + b * b - c * c) / (2 * a * b)); return angle * (180 / Math.PI); } }
+const POSE_LIBRARY = { 'T_POSE': { name: 'T-Pose', rules: [ { type: 'angle', points: [11, 13, 15], targetAngle: 180, weight: 2 }, { type: 'angle', points: [12, 14, 16], targetAngle: 180, weight: 2 }, { type: 'y_similarity', points: [13, 14], weight: 1 }, ], }, 'Y_POSE': { name: 'Y-Pose', rules: [ { type: 'angle', points: [23, 11, 13], targetAngle: 135, weight: 2 }, { type: 'angle', points: [24, 12, 14], targetAngle: 135, weight: 2 }, { type: 'angle', points: [11, 13, 15], targetAngle: 180, weight: 1 }, { type: 'angle', points: [12, 14, 16], targetAngle: 180, weight: 1 }, ], } };
+class PoseMatcher { constructor(targetPoseName) { this.target = POSE_LIBRARY[targetPoseName]; } calculateSimilarity(landmarks) { if (!landmarks || !this.target) return 0; let totalScore = 0; let totalWeight = 0; for (const rule of this.target.rules) { const allPointsVisible = rule.points.every(idx => landmarks[idx] && (landmarks[idx].visibility === undefined || landmarks[idx].visibility > 0.5)); if (!allPointsVisible) continue; let score = 0; const angleTolerance = 30; const yTolerance = 0.1; if (rule.type === 'angle') { const [p1, p2, p3] = rule.points.map(idx => landmarks[idx]); const currentAngle = VectorUtils.getAngle(p1, p2, p3); const angleDiff = Math.abs(currentAngle - rule.targetAngle); score = Math.max(0, 1 - (angleDiff / angleTolerance)); } else if (rule.type === 'y_similarity') { const [p1, p2] = rule.points.map(idx => landmarks[idx]); const yDiff = Math.abs(p1.y - p2.y); score = Math.max(0, 1 - (yDiff / yTolerance)); } totalScore += score * rule.weight; totalWeight += rule.weight; } return totalWeight > 0 ? (totalScore / totalWeight) * 100 : 0; } }
+// --- Helper 結束 ---
+
+
+export class PoseWallScene {
+    constructor() {
+        this.loopHandle = null; this.resultsListener = null;
+        this.canvas = null; this.ctx = null; this.debugInfo = null;
+        this.walls = []; this.spawnWallInterval = null;
+        this.currentPoseMatcher = null; this.similarityScore = 0;
+        this.latestPoseLandmarks = null;
+    }
+
+    render() {
+        return `
+            <style>
+                .pw-scene { position: relative; width: 100vw; height: 100vh; overflow: hidden; background-color: #000; }
+                .pw-scene #output-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 2; }
+                .pw-scene #ui-layer { position: absolute; top: 80px; left: 20px; z-index: 3; color: white; font-family: monospace; font-size: 1.2em; text-shadow: 1px 1px 2px black; pointer-events: none; }
+            </style>
+            <div class="pw-scene">
+                <a class="back-button" data-scene-changer="launcher" data-motion-activatable>
+                    <svg viewBox="0 0 24 24"><path d="M20,11V13H8L13.5,18.5L12.08,19.92L4.16,12L12.08,4.08L13.5,5.5L8,11H20Z" /></svg>
+                </a>
+                <canvas id="output-canvas"></canvas>
+                <div id="ui-layer"><div id="debug-info"></div></div>
+            </div>
+        `;
+    }
+
+    init() {
+        // 為咗同時有姿勢數據同手部指針，我哋強制用 holistic mode
+        window.motionEngine.setMode('holistic');
+        // 重新顯示黃點指針 UI
+        window.motionEngine.outputCanvas.style.display = 'block';
+
+        this.canvas = document.getElementById('output-canvas'); this.ctx = this.canvas.getContext('2d');
+        this.debugInfo = document.getElementById('debug-info');
+        this.canvas.width = window.innerWidth; this.canvas.height = window.innerHeight;
+
+        this._bindEvents();
+        this.startGame();
+    }
+
+    destroy() {
+        console.log("Destroying PoseWallScene...");
+        if (this.loopHandle) { cancelAnimationFrame(this.loopHandle); }
+        if (this.spawnWallInterval) { clearInterval(this.spawnWallInterval); }
+        
+        // 離開場景時，將 engine 切換返去默認嘅 hands 模式
+        window.motionEngine.setMode('hands');
+
+        const removeListener = (listeners, handler) => {
+            if (listeners && handler) { const index = listeners.indexOf(handler); if (index > -1) listeners.splice(index, 1); }
+        };
+        removeListener(window.motionEngine.eventListeners.get('results-updated'), this.resultsListener);
+    }
+
+    _bindEvents() {
+        document.querySelector('.back-button[data-scene-changer]').addEventListener('click', (e) => {
+            window.sceneManager.loadScene(e.currentTarget.dataset.sceneChanger);
+        });
+
+        // 監聽 Motion Engine 嘅數據更新
+        this.resultsListener = (results) => {
+            // Holistic model 會提供我哋需要嘅所有嘢
+            this.latestPoseLandmarks = results.poseLandmarks;
+        };
+        window.motionEngine.on('results-updated', this.resultsListener);
+    }
+
+    startGame() {
+        this.walls = [];
+        this.spawnWall();
+        this.spawnWallInterval = setInterval(() => this.spawnWall(), 5000);
+        
+        if (!this.loopHandle) {
+            this.gameLoop();
+        }
+    }
+
+    spawnWall() {
+        const poseNames = Object.keys(POSE_LIBRARY);
+        const randomPoseName = poseNames[Math.floor(Math.random() * poseNames.length)];
+        this.currentPoseMatcher = new PoseMatcher(randomPoseName);
+        this.walls.push({ z: 100, speed: 0.3, poseName: randomPoseName, passed: false, state: 'approaching' });
+    }
+
+    update() {
+        for (let i = this.walls.length - 1; i >= 0; i--) {
+            const wall = this.walls[i];
+            wall.z -= wall.speed;
+            if (wall.z < 10 && wall.z > 5 && wall.state === 'approaching') {
+                 this.similarityScore = this.currentPoseMatcher.calculateSimilarity(this.latestPoseLandmarks);
+                 if(this.similarityScore > 75) wall.passed = true;
+                 wall.state = 'passed-check';
+            }
+            if (wall.z < -10) {
+                this.walls.splice(i, 1);
+            }
+        }
+        if (this.currentPoseMatcher) {
+            this.debugInfo.innerHTML = `Target Pose: ${this.currentPoseMatcher.target.name}<br>Match Score: ${this.similarityScore.toFixed(1)}%`;
+        }
+    }
+
+    // === 徹底重寫 DRAW 方法 ===
+    draw() {
+        const w = this.canvas.width;
+        const h = this.canvas.height;
+        this.ctx.fillStyle = '#000';
+        this.ctx.fillRect(0, 0, w, h);
+
+        // 繪製骨架 (如果存在)
+        if (this.latestPoseLandmarks) {
+            this.ctx.save();
+            this.ctx.translate(w, 0); this.ctx.scale(-1, 1); // 鏡像反轉
+            // 用 drawConnectors 畫全身骨架
+            drawConnectors(this.ctx, this.latestPoseLandmarks, POSE_CONNECTIONS, { color: 'rgba(0, 255, 0, 0.7)', lineWidth: 3 });
+            this.ctx.restore();
+        }
+        
+        // 繪製牆壁
+        this.walls.sort((a, b) => b.z - a.z); // 由遠到近畫
+        for (const wall of this.walls) {
+            const scale = Math.max(0, (100 - wall.z) / 100);
+            
+            // 牆洞嘅大小，由 0 放大到幾乎佔滿屏幕
+            const holeWidth = w * scale;
+            const holeHeight = h * scale;
+            const holeX = (w - holeWidth) / 2;
+            const holeY = (h - holeHeight) / 2;
+
+            this.ctx.save();
+            this.ctx.globalAlpha = Math.min(1, scale * 2);
+
+            let wallColor;
+            if(wall.state === 'approaching') wallColor = '#ff00ff';
+            else wallColor = wall.passed ? '#00ffff' : '#ff4444';
+
+            // --- 新嘅、更簡單嘅繪圖方法 ---
+            this.ctx.strokeStyle = wallColor;
+            this.ctx.lineWidth = Math.max(2, 25 * scale); // 邊框闊度隨距離變化
+            this.ctx.strokeRect(holeX, holeY, holeWidth, holeHeight);
+            // --- 結束 ---
+
+            // 畫出牆壁中間嘅文字
+            this.ctx.fillStyle = '#fff';
+            this.ctx.font = `bold ${Math.max(12, 100 * scale)}px Arial`;
+            this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'middle';
+            this.ctx.globalAlpha = 1;
+            this.ctx.fillText(POSE_LIBRARY[wall.poseName].name, w / 2, h / 2);
+            
+            this.ctx.restore();
+        }
+    }
+    
+    gameLoop() {
+        this.update();
+        this.draw();
+        this.loopHandle = requestAnimationFrame(() => this.gameLoop());
+    }
+}..
+// \VSCode_Projects\MotionGameTemplate2\src\scenes\ribbon-painter-scene.js 
+// src/scenes/ribbon-painter-scene.js
+
+class GestureRecognizer { /* ... 不變 ... */ static isFist(handLandmarks) { if (!handLandmarks) return false; try { const wrist = handLandmarks[0]; const isIndexCurled = this.distance(handLandmarks[8], wrist) < this.distance(handLandmarks[5], wrist); const isMiddleCurled = this.distance(handLandmarks[12], wrist) < this.distance(handLandmarks[9], wrist); const isRingCurled = this.distance(handLandmarks[16], wrist) < this.distance(handLandmarks[13], wrist); const isPinkyCurled = this.distance(handLandmarks[20], wrist) < this.distance(handLandmarks[17], wrist); return isIndexCurled && isMiddleCurled && isRingCurled && isPinkyCurled; } catch (e) { return false; } } static distance(p1, p2) { return Math.hypot(p1.x - p2.x, p1.y - p2.y); } }
+class Ribbon { /* ... 不變 ... */ constructor(color) { this.points = []; this.color = color; this.MAX_POINTS = 100; } addPoint(x, y, speed) { const width = 2 + speed * 2; const opacity = Math.min(1, 0.1 + speed / 50); this.points.push({ x, y, width, opacity }); if (this.points.length > this.MAX_POINTS) { this.points.shift(); } } draw(ctx) { if (this.points.length < 2) return; for (let i = 1; i < this.points.length; i++) { const p1 = this.points[i-1]; const p2 = this.points[i]; ctx.strokeStyle = this.color.replace('%a', p2.opacity * (i / this.points.length)); ctx.lineWidth = p2.width; ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke(); } } }
+
+export class RibbonPainterScene {
+    constructor() { /* ... 不變 ... */ this.loopHandle = null; this.resultsListener = null; this.canvas = null; this.ctx = null; this.latestResults = null; this.hands = { left: { ribbon: new Ribbon('rgba(0, 255, 255, %a)'), history: [], isDrawing: false }, right: { ribbon: new Ribbon('rgba(255, 215, 0, %a)'), history: [] , isDrawing: false } }; this.HISTORY_LENGTH = 5; }
+    render() { /* ... 不變 ... */ return ` <style> .rp-scene { position: relative; width: 100vw; height: 100vh; overflow: hidden; background-color: #0a0a1a; cursor: none; } .rp-scene #game-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 2; } .rp-scene #info-panel { position: absolute; top: 80px; left: 20px; z-index: 3; color: white; font-family: monospace; font-size: 1.2em; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 8px; } .rp-scene #clear-button { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); padding: 15px 30px; font-size: 1.2em; background-color: #c0392b; color: white; border: none; border-radius: 10px; z-index: 4; pointer-events: auto; } </style> <div class="rp-scene"> <a class="back-button" data-scene-changer="launcher" data-motion-activatable> <svg viewBox="0 0 24 24"><path d="M20,11V13H8L13.5,18.5L12.08,19.92L4.16,12L12.08,4.08L13.5,5.5L8,11H20Z" /></svg> </a> <canvas id="game-canvas"></canvas> <div id="info-panel"> <p>揸緊拳頭開始畫畫</p> <p>張開手掌停止</p> </div> <button id="clear-button" data-motion-activatable>清除畫布</button> </div> `; }
+    init() { /* ... 不變 ... */ window.motionEngine.setMode('holistic'); window.motionEngine.outputCanvas.style.display = 'block'; this.canvas = document.getElementById('game-canvas'); this.ctx = this.canvas.getContext('2d'); this.canvas.width = window.innerWidth; this.canvas.height = window.innerHeight; this.ctx.lineCap = 'round'; this.ctx.lineJoin = 'round'; this._bindEvents(); this.gameLoop(); }
+    destroy() { /* ... 不變 ... */ if (this.loopHandle) cancelAnimationFrame(this.loopHandle); window.motionEngine.setMode('hands'); const removeListener = (listeners, handler) => { if (listeners && handler) { const index = listeners.indexOf(handler); if (index > -1) listeners.splice(index, 1); } }; removeListener(window.motionEngine.eventListeners.get('results-updated'), this.resultsListener); }
+    _bindEvents() { /* ... 不變 ... */ document.querySelector('.back-button[data-scene-changer]').addEventListener('click', (e) => window.sceneManager.loadScene(e.currentTarget.dataset.sceneChanger)); document.getElementById('clear-button').addEventListener('click', () => { this.hands.left.ribbon.points = []; this.hands.right.ribbon.points = []; }); this.resultsListener = (results) => { this.latestResults = results; }; window.motionEngine.on('results-updated', this.resultsListener); }
+    update() { /* ... 不變 ... */ if (!this.latestResults) return; const pointers = window.motionEngine.pointers; const handLandmarks = { left: this.latestResults.leftHandLandmarks, right: this.latestResults.rightHandLandmarks }; ['left', 'right'].forEach(hand => { const state = this.hands[hand]; const pointer = pointers.find(p => p.hand === hand); const landmarks = handLandmarks[hand]; const isCurrentlyFist = GestureRecognizer.isFist(landmarks); if (!state.isDrawing && isCurrentlyFist) { state.history = []; } state.isDrawing = isCurrentlyFist; if (pointer && pointer.isVisible) { const x = (1 - pointer.x) * this.canvas.width; const y = pointer.y * this.canvas.height; state.history.push({ x, y }); if (state.history.length > this.HISTORY_LENGTH) { state.history.shift(); } if (state.isDrawing) { let speed = 0; if (state.history.length > 1) { const last = state.history[state.history.length - 1]; const prev = state.history[state.history.length - 2]; speed = Math.hypot(last.x - prev.x, last.y - prev.y); } state.ribbon.addPoint(x, y, speed); } } }); }
+
+    // === 核心修改：喺 draw 方法入面加入骨架繪製 ===
+    draw() {
+        // 1. 畫一個帶有淡出效果嘅背景
+        this.ctx.fillStyle = 'rgba(10, 10, 26, 0.2)';
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+        // 2. 畫骨架 (先畫，喺最底層)
+        if (this.latestResults) {
+            this.ctx.save();
+            // 因為我哋要畫喺主 canvas 上面，而主 canvas 冇鏡像
+            // 所以我哋要手動鏡像個 context
+            this.ctx.translate(this.canvas.width, 0);
+            this.ctx.scale(-1, 1);
+            
+            this.ctx.globalAlpha = 0.4; // 骨架用半透明
+            const drawHand = (landmarks, color) => {
+                if (landmarks) {
+                    drawConnectors(this.ctx, landmarks, HAND_CONNECTIONS, { color, lineWidth: 2 });
+                    drawLandmarks(this.ctx, landmarks, { color, radius: 3 });
+                }
+            };
+            drawHand(this.latestResults.leftHandLandmarks, '#00FFFF');
+            drawHand(this.latestResults.rightHandLandmarks, '#FFD700');
+            
+            this.ctx.restore(); // 恢復 context 狀態
+        }
+
+        // 3. 畫兩隻手嘅絲帶 (畫喺骨架上面)
+        this.hands.left.ribbon.draw(this.ctx);
+        this.hands.right.ribbon.draw(this.ctx);
+    }
+    // ===========================================
+
+    gameLoop() { this.update(); this.draw(); this.loopHandle = requestAnimationFrame(() => this.gameLoop()); }
+}..
+// \VSCode_Projects\MotionGameTemplate2\src\scenes\shape-deformer-scene.js 
+// src/scenes/shape-deformer-scene.js
+
+export class ShapeDeformerScene {
+    constructor() {
+        this.loopHandle = null;
+        this.resultsListener = null;
+        this.canvas = null; this.ctx = null; this.latestResults = null;
+        this.shapePoints = []; this.pointRadius = 20;
+
+        // === 核心修改 1：為每隻手加入容錯計數器 ===
+        this.hands = {
+            left: { isPinching: false, grabbedPointIndex: -1, isHovering: false, pinchMissFrames: 0 },
+            right: { isPinching: false, grabbedPointIndex: -1, isHovering: false, pinchMissFrames: 0 }
+        };
+        this.PINCH_MISS_TOLERANCE = 3; // 連續 3 幀偵測唔到先當放手
+        // ===========================================
+    }
+
+    render() {
+        return `
+            <style>
+                .sd-scene { position: relative; width: 100vw; height: 100vh; overflow: hidden; background-color: #2c3e50; }
+                .sd-scene #game-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 2; }
+                .sd-scene #info-panel { position: absolute; top: 80px; left: 20px; z-index: 3; color: white; font-family: monospace; font-size: 1.2em; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 8px; }
+            </style>
+            <div class="sd-scene">
+                <a class="back-button" data-scene-changer="launcher" data-motion-activatable>
+                    <svg viewBox="0 0 24 24"><path d="M20,11V13H8L13.5,18.5L12.08,19.92L4.16,12L12.08,4.08L13.5,5.5L8,11H20Z" /></svg>
+                </a>
+                <canvas id="game-canvas"></canvas>
+                <div id="info-panel">
+                    <p>用拇指同食指「捏」住圓點拖動</p>
+                    <div id="left-hand-status">左手: -</div>
+                    <div id="right-hand-status">右手: -</div>
+                </div>
+            </div>
+        `;
+    }
+
+    init() {
+        window.motionEngine.setMode('holistic');
+        window.motionEngine.outputCanvas.style.display = 'none'; // 呢個場景唔需要黃點
+        this.canvas = document.getElementById('game-canvas'); this.ctx = this.canvas.getContext('2d');
+        this.canvas.width = window.innerWidth; this.canvas.height = window.innerHeight;
+        this.ui = { leftStatus: document.getElementById('left-hand-status'), rightStatus: document.getElementById('right-hand-status') };
+        this.resetShape(); this._bindEvents(); this.gameLoop();
+    }
+
+    destroy() {
+        if (this.loopHandle) cancelAnimationFrame(this.loopHandle);
+        window.motionEngine.setMode('hands');
+        const removeListener = (listeners, handler) => { if (listeners && handler) { const index = listeners.indexOf(handler); if (index > -1) listeners.splice(index, 1); } };
+        removeListener(window.motionEngine.eventListeners.get('results-updated'), this.resultsListener);
+    }
+    
+    resetShape() {
+        this.shapePoints = []; const w = this.canvas.width; const h = this.canvas.height;
+        const centerX = w / 2, centerY = h / 2; const radius = Math.min(w, h) * 0.2;
+        const sides = 5; for (let i = 0; i < sides; i++) {
+            const angle = (i / sides) * Math.PI * 2;
+            this.shapePoints.push({ x: centerX + radius * Math.cos(angle), y: centerY + radius * Math.sin(angle) });
+        }
+    }
+
+    _bindEvents() {
+        document.querySelector('.back-button[data-scene-changer]').addEventListener('click', (e) => window.sceneManager.loadScene(e.currentTarget.dataset.sceneChanger));
+        this.resultsListener = (results) => { this.latestResults = results; };
+        window.motionEngine.on('results-updated', this.resultsListener);
+    }
+    
+    // === 核心修改 2：加入容錯邏輯 ===
+    update() {
+        if (!this.latestResults) return;
+
+        const w = this.canvas.width, h = this.canvas.height;
+        const results = this.latestResults;
+        const handLandmarks = { left: results.leftHandLandmarks, right: results.rightHandLandmarks };
+
+        ['left', 'right'].forEach(hand => {
+            const state = this.hands[hand];
+            const landmarks = handLandmarks[hand];
+            const wasPinching = state.isPinching;
+            
+            // 判斷當前幀係咪捏合
+            const isCurrentlyPinching = window.isPinching(landmarks);
+
+            // 更新容錯計數器
+            if (isCurrentlyPinching) {
+                state.pinchMissFrames = 0; // 如果捏合，計數器清零
+            } else {
+                state.pinchMissFrames++; // 如果冇捏合，計數器加一
+            }
+            
+            // 更新最終嘅 isPinching 狀態
+            // 如果之前係捏合緊，只有當連續幾幀都冇捏合，先會真正放手
+            if (state.isPinching) {
+                if (state.pinchMissFrames > this.PINCH_MISS_TOLERANCE) {
+                    state.isPinching = false;
+                }
+            } else {
+                state.isPinching = isCurrentlyPinching;
+            }
+
+            // ... 後面嘅邏輯大部分不變 ...
+            state.isHovering = false;
+            const pointer = window.motionEngine.pointers.find(p => p.hand === hand);
+            if (!pointer || !pointer.isVisible) { if (state.grabbedPointIndex !== -1) { state.grabbedPointIndex = -1; } state.isPinching = false; return; }
+            const pointerScreenX = (1 - pointer.x) * w; const pointerScreenY = pointer.y * h;
+
+            if (state.grabbedPointIndex !== -1) {
+                if (state.isPinching) {
+                    this.shapePoints[state.grabbedPointIndex].x = pointerScreenX;
+                    this.shapePoints[state.grabbedPointIndex].y = pointerScreenY;
+                } else {
+                    state.grabbedPointIndex = -1;
+                }
+            } else {
+                state.hoveringPointIndex = -1; // 重置
+                for (let i = 0; i < this.shapePoints.length; i++) {
+                    const point = this.shapePoints[i];
+                    const distance = Math.hypot(pointerScreenX - point.x, pointerScreenY - point.y);
+                    if (distance < this.pointRadius * 1.5) {
+                        state.hoveringPointIndex = i;
+                        state.isHovering = true;
+                        // 如果喺懸停時開始捏合（由非捏合變為捏合），就抓取
+                        if (state.isPinching && !wasPinching) {
+                            state.grabbedPointIndex = i;
+                        }
+                        break;
+                    }
+                }
+            }
+            let statusText = `${hand}: `; if(state.grabbedPointIndex !== -1) statusText += `抓取緊點 ${state.grabbedPointIndex}`; else if(state.isHovering) statusText += `懸停喺點 ${state.hoveringPointIndex}`; else statusText += (state.isPinching ? '捏合' : '張開');
+            this.ui[`${hand}Status`].textContent = statusText;
+        });
+    }
+    
+    // === 核心修改 3：加入骨架繪製 ===
+    draw() {
+        const w = this.canvas.width, h = this.canvas.height;
+        this.ctx.clearRect(0, 0, w, h);
+
+        if (this.latestResults && this.latestResults.image) {
+            this.ctx.save(); this.ctx.globalAlpha = 0.3; this.ctx.translate(w, 0); this.ctx.scale(-1, 1);
+            this.ctx.drawImage(this.latestResults.image, 0, 0, w, h);
+            this.ctx.restore();
+        }
+
+        // 畫骨架
+        if (this.latestResults) {
+            this.ctx.save(); this.ctx.globalAlpha = 0.5; this.ctx.translate(w, 0); this.ctx.scale(-1, 1);
+            const drawHand = (landmarks, color) => {
+                if (landmarks) {
+                    drawConnectors(this.ctx, landmarks, HAND_CONNECTIONS, { color, lineWidth: 2 });
+                    drawLandmarks(this.ctx, landmarks, { color, radius: 3 });
+                }
+            }
+            drawHand(this.latestResults.leftHandLandmarks, '#00FFFF'); // 左青
+            drawHand(this.latestResults.rightHandLandmarks, '#FFD700'); // 右黃
+            this.ctx.restore();
+        }
+
+        // 畫圖形嘅連線
+        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)'; this.ctx.lineWidth = 3;
+        this.ctx.beginPath(); this.ctx.moveTo(this.shapePoints[0].x, this.shapePoints[0].y);
+        for (let i = 1; i < this.shapePoints.length; i++) { this.ctx.lineTo(this.shapePoints[i].x, this.shapePoints[i].y); }
+        this.ctx.closePath(); this.ctx.stroke();
+
+        // 畫圖形嘅頂點
+        this.shapePoints.forEach((point, i) => {
+            const isLeftGrabbed = this.hands.left.grabbedPointIndex === i; const isRightGrabbed = this.hands.right.grabbedPointIndex === i;
+            const isLeftHovering = this.hands.left.hoveringPointIndex === i && this.hands.left.isHovering;
+            const isRightHovering = this.hands.right.hoveringPointIndex === i && this.hands.right.isHovering;
+            let color = '#3498db';
+            if(isLeftGrabbed) color = '#00FFFF'; else if(isRightGrabbed) color = '#FFD700';
+            else if(isLeftHovering || isRightHovering) color = '#e74c3c';
+            this.ctx.fillStyle = color; this.ctx.beginPath();
+            this.ctx.arc(point.x, point.y, this.pointRadius, 0, Math.PI * 2);
+            this.ctx.fill();
+        });
+    }
+    
+    gameLoop() { this.update(); this.draw(); this.loopHandle = requestAnimationFrame(() => this.gameLoop()); }
+}..
+// \VSCode_Projects\MotionGameTemplate2\src\scenes\test-scene.js 
+// src/scenes/test-scene.js
+
+export class TestScene {
+    constructor() {
+        this.ui = {};
+        this.currentMode = 'hands';
+        this.fps = 0;
+        this.loopHandle = null;
+        this.resultsListener = null;
+        this.lastFrameTime = performance.now();
+    }
+
+    render() {
+        return `
+            <style>
+                .test-scene { display: grid; grid-template-columns: 1fr 380px; gap: 16px; padding: 16px; padding-top: 80px; /* 為返回按鈕留位 */ height: 100vh; width: 100vw; box-sizing: border-box; background: #1a1a1a; color: white; }
+                .test-scene .main-view { background: #2b2b2b; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; }
+                .test-scene .video-container { position: relative; width: 100%; flex-grow: 1; background: #000; border-radius: 8px; overflow: hidden; }
+                .test-scene #output-canvas { position: absolute; width: 100%; height: 100%; object-fit: contain; transform: scaleX(-1); }
+                .test-scene .control-panel { background: #2b2b2b; border-radius: 12px; padding: 16px; overflow-y: auto; }
+                .test-scene .panel-section { margin-bottom: 20px; padding: 16px; background: #3c3c3c; border-radius: 8px; }
+                .test-scene .panel-title { font-size: 16px; font-weight: 600; margin-bottom: 12px; color: #ffd700; }
+                .test-scene .mode-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+                .test-scene .mode-btn { padding: 10px; background: #555; border: 1px solid #666; border-radius: 6px; color: white; cursor: pointer; transition: all 0.2s; font-size: 14px; pointer-events: auto; }
+                .test-scene .mode-btn:hover, .test-scene .mode-btn.motion-hover { background: #666; border-color: #ffd700; }
+                .test-scene .mode-btn.active { background: #ffd700; color: #1a1a1a; border-color: #ffd700; font-weight: bold; }
+                .test-scene .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+                .test-scene .stat-item { padding: 8px; background: #444; border-radius: 6px; }
+                .test-scene .stat-label { font-size: 12px; color: #aaa; margin-bottom: 4px; }
+                .test-scene .stat-value { font-size: 18px; font-weight: bold; color: #4CAF50; }
+            </style>
+            <div class="test-scene">
+                <a class="back-button" data-scene-changer="launcher" data-motion-activatable>
+                     <svg viewBox="0 0 24 24"><path d="M20,11V13H8L13.5,18.5L12.08,19.92L4.16,12L12.08,4.08L13.5,5.5L8,11H20Z" /></svg>
+                </a>
+                <div class="main-view">
+                    <div class="video-container"><canvas id="output-canvas"></canvas></div>
+                </div>
+                <div class="control-panel">
+                    <div class="panel-section"><div class="panel-title">🎯 Detection Mode</div>
+                        <div class="mode-buttons">
+                            <button class="mode-btn active" data-mode="hands" data-motion-activatable>✋ Hands</button>
+                            <button class="mode-btn" data-mode="pose" data-motion-activatable>🚶 Pose</button>
+                            <button class="mode-btn" data-mode="holistic" data-motion-activatable>🧍 Holistic</button>
+                        </div>
+                    </div>
+                    <div class="panel-section"><div class="panel-title">📊 Performance Stats</div>
+                        <div class="stats"><div class="stat-item"><div class="stat-label">FPS</div><div class="stat-value" id="fps">0</div></div></div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    init() {
+        this.ui.canvas = document.getElementById('output-canvas');
+        this.ui.ctx = this.ui.canvas.getContext('2d');
+        this.ui.fps = document.getElementById('fps');
+        
+        // === 核心修改：統一設置 ===
+        // 無論係咩 mode，都用左手做指針
+        window.motionEngine.setPointerHand('left');
+        // 無論係咩 mode，都顯示黃點指針
+        window.motionEngine.outputCanvas.style.display = 'block';
+        // ==========================
+
+        this.switchMode(this.currentMode);
+        this._bindEvents();
+        this.gameLoop();
+    }
+
+    destroy() {
+        if (this.loopHandle) cancelAnimationFrame(this.loopHandle);
+        const removeListener = (listeners, handler) => { if (listeners && handler) { const index = listeners.indexOf(handler); if (index > -1) listeners.splice(index, 1); } };
+        removeListener(window.motionEngine.eventListeners.get('results-updated'), this.resultsListener);
+        
+        // 離開時恢復默認設置
+        window.motionEngine.setPointerHand('right');
+        window.motionEngine.setMode('hands');
+    }
+
+    _bindEvents() {
+        document.querySelector('.back-button[data-scene-changer]').addEventListener('click', (e) => window.sceneManager.loadScene(e.currentTarget.dataset.sceneChanger));
+        document.querySelectorAll('.mode-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => this.switchMode(e.target.dataset.mode));
+        });
+        this.resultsListener = (results) => this.onResults(results);
+        window.motionEngine.on('results-updated', this.resultsListener);
+    }
+
+    // === 核心修改：移除不必要嘅 display 切換 ===
+    switchMode(mode) {
+        this.currentMode = mode;
+        window.motionEngine.setMode(mode);
+        document.querySelectorAll('.mode-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.mode === mode);
+        });
+        // 唔再需要喺度控制黃點嘅顯示，init 已經統一處理咗
+    }
+
+    onResults(results) {
+        const w = this.ui.canvas.width = window.innerWidth * 0.7;
+        const h = this.ui.canvas.height = window.innerHeight * 0.8;
+        const ctx = this.ui.ctx;
+        ctx.save();
+        ctx.clearRect(0, 0, w, h);
+        
+        if (results.image) {
+            ctx.drawImage(results.image, 0, 0, w, h);
+        }
+        
+        const drawConfig = { color: '#00FF00', lineWidth: 4 }, landmarkConfig = { color: '#FF0000', radius: 5 };
+        // 繪圖邏輯保持不變，因為 motionEngine 已經為我哋提供咗正確嘅 results
+        switch(this.currentMode) {
+            case 'hands': if (results.multiHandLandmarks) for (const l of results.multiHandLandmarks) { drawConnectors(ctx, l, HAND_CONNECTIONS, drawConfig); drawLandmarks(ctx, l, landmarkConfig); } break;
+            case 'pose': if (results.poseLandmarks) { drawConnectors(ctx, results.poseLandmarks, POSE_CONNECTIONS, drawConfig); drawLandmarks(ctx, results.poseLandmarks, landmarkConfig); } break;
+            case 'holistic':
+                if (results.poseLandmarks) drawConnectors(ctx, results.poseLandmarks, POSE_CONNECTIONS, drawConfig);
+                if (results.leftHandLandmarks) drawConnectors(ctx, results.leftHandLandmarks, HAND_CONNECTIONS, { ...drawConfig, color: '#CC0000' });
+                if (results.rightHandLandmarks) drawConnectors(ctx, results.rightHandLandmarks, HAND_CONNECTIONS, { ...drawConfig, color: '#0000CC' });
+                break;
+        }
+        ctx.restore();
+    }
+
+    gameLoop() {
+        const now = performance.now();
+        const delta = now - this.lastFrameTime;
+        if (delta > 0) { // 避免除以零
+            this.fps = 1000 / delta;
+            this.ui.fps.textContent = Math.round(this.fps);
+        }
+        this.lastFrameTime = now;
+        this.loopHandle = requestAnimationFrame(() => this.gameLoop());
+    }
+}..
+// \VSCode_Projects\MotionGameTemplate2\src\scenes\throw-game-scene.js 
+// src/scenes/throw-game-scene.js
+
+const loadScript = (src) => { /* ... 不變 ... */ return new Promise((resolve, reject) => { if (document.querySelector(`script[src="${src}"]`)) return resolve(); const script = document.createElement('script'); script.src = src; script.onload = () => resolve(); script.onerror = () => reject(new Error(`Failed to load script: ${src}`)); document.head.appendChild(script); }); };
+
+export class ThrowGameScene {
+    constructor() {
+        this.loopHandle = null; this.resultsListener = null;
+        this.matterEngine = null; this.matterRunner = null;
+        this.latestResults = null;
+        
+        this.ball = null;
+        this.ballState = 'idle'; // idle, grabbing, thrown
+        this.grabbingHand = null; // 'left' or 'right'
+
+        this.handStates = {
+            left: { x: 0, y: 0, history: [], isPinching: false },
+            right: { x: 0, y: 0, history: [], isPinching: false }
+        };
+        this.HISTORY_LENGTH = 5;
+    }
+
+    render() {
+        return `
+            <style>
+                .tg-scene { position: relative; width: 100vw; height: 100vh; overflow: hidden; background-color: #334; cursor: none; }
+                .tg-scene #skeleton-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; opacity: 0.3; pointer-events: none; transform: scaleX(-1); }
+                .tg-scene #game-canvas-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 2; }
+                .tg-scene #info-panel { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); z-index: 3; color: white; font-family: monospace; font-size: 1.2em; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 8px; text-align: center; }
+            </style>
+            <div class="tg-scene">
+                <a class="back-button" data-scene-changer="launcher" data-motion-activatable>
+                    <svg viewBox="0 0 24 24"><path d="M20,11V13H8L13.5,18.5L12.08,19.92L4.16,12L12.08,4.08L13.5,5.5L8,11H20Z" /></svg>
+                </a>
+                <canvas id="skeleton-canvas"></canvas>
+                <div id="game-canvas-container"></div>
+                <div id="info-panel"">
+                    <p>將手靠近個波，然後用拇指同食指「捏」實佢</p>
+                    <p>揮動並鬆開手指嚟掟個波</p>
+                </div>
+            </div>
+        `;
+    }
+
+    async init() {
+        await loadScript("https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js");
+        // 呢個遊戲需要精細手勢，用 Holistic 效果最好
+        window.motionEngine.setMode('holistic'); 
+        window.motionEngine.outputCanvas.style.display = 'block';
+        this.gameCanvasContainer = document.getElementById('game-canvas-container');
+        this.skeletonCanvas = document.getElementById('skeleton-canvas'); this.skeletonCtx = this.skeletonCanvas.getContext('2d');
+        this._setupPhysics(); this._bindEvents(); this.resetBall(); this.gameLoop();
+    }
+
+    destroy() { /* ... 不變 ... */ if (this.loopHandle) cancelAnimationFrame(this.loopHandle); if (this.matterRunner) Matter.Runner.stop(this.matterRunner); if (this.matterEngine) Matter.Engine.clear(this.matterEngine); window.motionEngine.setMode('hands'); const removeListener = (listeners, handler) => { if (listeners && handler) { const index = listeners.indexOf(handler); if (index > -1) listeners.splice(index, 1); } }; removeListener(window.motionEngine.eventListeners.get('results-updated'), this.resultsListener); }
+    _setupPhysics() { /* ... 不變 ... */ const { Engine, Render, Runner, World, Bodies } = Matter; this.matterEngine = Engine.create(); this.matterRunner = Runner.create(); const renderer = Render.create({ element: this.gameCanvasContainer, engine: this.matterEngine, options: { width: window.innerWidth, height: window.innerHeight, wireframes: false, background: 'transparent' } }); this.matterEngine.world.gravity.y = 1; const w = window.innerWidth, h = window.innerHeight; const wallOptions = { isStatic: true, render: { fillStyle: 'transparent' } }; World.add(this.matterEngine.world, [ Bodies.rectangle(w / 2, h + 30, w, 60, wallOptions), Bodies.rectangle(-30, h / 2, 60, h, wallOptions), Bodies.rectangle(w + 30, h / 2, 60, h, wallOptions), Bodies.rectangle(w / 2, -30, w, 60, wallOptions) ]); Render.run(renderer); Runner.run(this.matterRunner, this.matterEngine); }
+    _bindEvents() { /* ... 不變 ... */ document.querySelector('.back-button[data-scene-changer]').addEventListener('click', (e) => window.sceneManager.loadScene(e.currentTarget.dataset.sceneChanger)); this.resultsListener = (results) => { this.latestResults = results; }; window.motionEngine.on('results-updated', this.resultsListener); }
+    resetBall() { /* ... 不變 ... */ if (this.ball) Matter.Composite.remove(this.matterEngine.world, this.ball); this.ball = Matter.Bodies.circle(window.innerWidth / 2, window.innerHeight / 2, 30, { restitution: 0.7, render: { fillStyle: '#e74c3c' } }); Matter.World.add(this.matterEngine.world, this.ball); this.ballState = 'idle'; this.grabbingHand = null; }
+
+    updateHandsState() {
+        if (!this.latestResults) return;
+        
+        const handData = {
+            left: this.latestResults.leftHandLandmarks,
+            right: this.latestResults.rightHandLandmarks
+        };
+
+        ['left', 'right'].forEach(hand => {
+            const state = this.handStates[hand];
+            const landmarks = handData[hand];
+            const pointer = window.motionEngine.pointers.find(p => p.hand === hand);
+            
+            // 更新捏合狀態
+            state.isPinching = window.isPinching ? window.isPinching(landmarks) : false;
+
+            if (pointer && pointer.isVisible) {
+                state.x = (1 - pointer.x) * window.innerWidth;
+                state.y = pointer.y * window.innerHeight;
+                state.history.push({ x: state.x, y: state.y, time: performance.now() });
+                if (state.history.length > this.HISTORY_LENGTH) state.history.shift();
+            }
+        });
+    }
+    
+    // === 核心修改：全新嘅遊戲 update 邏輯 ===
+    update() {
+        this.updateHandsState();
+
+        // 狀態 1：抓取中 (Grabbing)
+        if (this.ballState === 'grabbing') {
+            const state = this.handStates[this.grabbingHand];
+            
+            // 如果手仲喺度，而且保持捏合，就將波鎖定到手上
+            if (state && state.isPinching) {
+                Matter.Body.setPosition(this.ball, { x: state.x, y: state.y });
+                Matter.Body.setVelocity(this.ball, { x: 0, y: 0 });
+            } 
+            // 如果放開手指，就掟出去
+            else {
+                this.ballState = 'thrown';
+                this.ball.render.fillStyle = '#e74c3c';
+
+                if (state && state.history.length === this.HISTORY_LENGTH) {
+                    const oldest = state.history[0];
+                    const newest = state.history[state.history.length - 1];
+                    // 計算速度向量
+                    const velocityX = (newest.x - oldest.x) / (newest.time - oldest.time) * 30;
+                    const velocityY = (newest.y - oldest.y) / (newest.time - oldest.time) * 30;
+                    Matter.Body.setVelocity(this.ball, { x: velocityX, y: velocityY });
+                }
+                this.grabbingHand = null;
+            }
+        }
+        
+        // 狀態 2：閒置或已掟出
+        else {
+            // 檢查有冇手想抓取
+            for (const hand of ['left', 'right']) {
+                const state = this.handStates[hand];
+                if (state.isPinching) {
+                    const distance = Math.hypot(state.x - this.ball.position.x, state.y - this.ball.position.y);
+                    // 如果手捏合緊，而且夠近，就抓取
+                    if (distance < this.ball.circleRadius * 1.5) {
+                        this.ballState = 'grabbing';
+                        this.grabbingHand = hand;
+                        this.ball.render.fillStyle = hand === 'left' ? '#00FFFF' : '#FFD700';
+                        break; // 只俾一隻手抓
+                    }
+                }
+            }
+
+            // 如果波已經掟咗出去，檢查係咪要重置
+            if (this.ballState === 'thrown' && Matter.Vector.magnitude(this.ball.velocity) < 0.5 && this.ball.position.y > window.innerHeight - 100) {
+                this.resetBall();
+            }
+        }
+    }
+    
+    drawSkeleton() {
+        const w = this.skeletonCanvas.width = window.innerWidth;
+        const h = this.skeletonCanvas.height = window.innerHeight;
+        this.skeletonCtx.clearRect(0, 0, w, h);
+        if (!this.latestResults) return;
+        if (this.latestResults.image) this.skeletonCtx.drawImage(this.latestResults.image, 0, 0, w, h);
+        const drawHand = (landmarks, color) => { if (landmarks) { drawConnectors(this.skeletonCtx, landmarks, HAND_CONNECTIONS, { color, lineWidth: 2 }); } };
+        drawHand(this.latestResults.leftHandLandmarks, '#00FFFF');
+        drawHand(this.latestResults.rightHandLandmarks, '#FFD700');
+    }
+
+    gameLoop() {
+        this.update();
+        this.drawSkeleton();
+        this.loopHandle = requestAnimationFrame(() => this.gameLoop());
+    }
+}..
