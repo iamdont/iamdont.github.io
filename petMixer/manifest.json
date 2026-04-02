@@ -1,5 +1,5 @@
 {
-  "_generated": "2026-04-02T06:51:06.584Z",
+  "_generated": "2026-04-02T06:56:48.040Z",
   "animals": {
     "cat": {
       "types": {
@@ -25,7 +25,7 @@
     },
     "humanCatAngry": {
       "types": {
-        "_general": {
+        "meow": {
           "files": [
             "human_angry_cat_01.wav",
             "human_angry_cat_02.wav",
@@ -43,7 +43,7 @@
     },
     "humanCatFemale": {
       "types": {
-        "_general": {
+        "meow": {
           "files": [
             "human_female_cat_01.wav",
             "human_female_cat_02.wav",
@@ -60,7 +60,7 @@
     },
     "humanCatMale": {
       "types": {
-        "_general": {
+        "meow": {
           "files": [
             "human_male_cat_01.wav",
             "human_male_cat_02.wav",
@@ -90,19 +90,19 @@
       "humanCatAngry": {
         "total": 9,
         "types": {
-          "_general": 9
+          "meow": 9
         }
       },
       "humanCatFemale": {
         "total": 8,
         "types": {
-          "_general": 8
+          "meow": 8
         }
       },
       "humanCatMale": {
         "total": 10,
         "types": {
-          "_general": 10
+          "meow": 10
         }
       }
     }
