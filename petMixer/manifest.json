@@ -1,5 +1,5 @@
 {
-  "_generated": "2026-04-02T01:56:19.782Z",
+  "_generated": "2026-04-02T06:51:06.584Z",
   "animals": {
     "cat": {
       "types": {
@@ -22,15 +22,87 @@
           "count": 13
         }
       }
+    },
+    "humanCatAngry": {
+      "types": {
+        "_general": {
+          "files": [
+            "human_angry_cat_01.wav",
+            "human_angry_cat_02.wav",
+            "human_angry_cat_03.wav",
+            "human_angry_cat_04.wav",
+            "human_angry_cat_05.wav",
+            "human_angry_cat_06.wav",
+            "human_angry_cat_07.wav",
+            "human_angry_cat_08.wav",
+            "human_angry_cat_09.wav"
+          ],
+          "count": 9
+        }
+      }
+    },
+    "humanCatFemale": {
+      "types": {
+        "_general": {
+          "files": [
+            "human_female_cat_01.wav",
+            "human_female_cat_02.wav",
+            "human_female_cat_03.wav",
+            "human_female_cat_04.wav",
+            "human_female_cat_05.wav",
+            "human_female_cat_06.wav",
+            "human_female_cat_07.wav",
+            "human_female_cat_08.wav"
+          ],
+          "count": 8
+        }
+      }
+    },
+    "humanCatMale": {
+      "types": {
+        "_general": {
+          "files": [
+            "human_male_cat_01.wav",
+            "human_male_cat_02.wav",
+            "human_male_cat_03.wav",
+            "human_male_cat_04.wav",
+            "human_male_cat_05.wav",
+            "human_male_cat_06.wav",
+            "human_male_cat_07.wav",
+            "human_male_cat_08.wav",
+            "human_male_cat_09.wav",
+            "human_male_cat_10.wav"
+          ],
+          "count": 10
+        }
+      }
     }
   },
   "_summary": {
-    "totalFiles": 13,
+    "totalFiles": 40,
     "animals": {
       "cat": {
         "total": 13,
         "types": {
           "meow": 13
+        }
+      },
+      "humanCatAngry": {
+        "total": 9,
+        "types": {
+          "_general": 9
+        }
+      },
+      "humanCatFemale": {
+        "total": 8,
+        "types": {
+          "_general": 8
+        }
+      },
+      "humanCatMale": {
+        "total": 10,
+        "types": {
+          "_general": 10
         }
       }
     }
