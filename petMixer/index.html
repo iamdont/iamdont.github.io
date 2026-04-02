@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🐾 Pet Sound Mixer</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, 'Segoe UI', sans-serif;
+    background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+    color: #fff; min-height: 100vh; padding: 20px;
+  }
+  .container { max-width: 900px; margin: 0 auto; }
+  h1 { text-align: center; font-size: 2em; margin: 20px 0; }
+
+  .panel {
+    background: rgba(255,255,255,0.08); border-radius: 16px; padding: 10px;
+    margin-bottom: 10px; backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  .panel h2 { margin-bottom: 16px; font-size: 1.1em; opacity: 0.9; }
+
+  /* ── Tabs ── */
+  .tab-bar {
+    display: flex; gap: 0; margin-bottom: 10px; border-radius: 14px; overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.15);
+  }
+  .tab-btn {
+    flex: 1; padding: 16px; border: none; background: rgba(255,255,255,0.04);
+    color: rgba(255,255,255,0.5); font-size: 1.05em; font-weight: 600;
+    cursor: pointer; transition: all 0.3s;
+  }
+  .tab-btn.active { background: rgba(255,255,255,0.12); color: #fff; }
+  .tab-btn:hover:not(.active) { background: rgba(255,255,255,0.07); }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* ── Common ── */
+  .animal-toggle { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 5px; }
+  .animal-btn {
+    padding: 12px 28px; border-radius: 12px; border: 2px solid rgba(255,255,255,0.2);
+    background: transparent; color: #fff; font-size: 1.1em; cursor: pointer; transition: all 0.3s;
+  }
+  .animal-btn.active { background: rgba(255,255,255,0.2); border-color: #ffd700; }
+  .animal-btn:hover { background: rgba(255,255,255,0.1); }
+
+  .slider-group { margin: 14px 0; }
+  .slider-group label {
+    display: flex; justify-content: space-between; margin-bottom: 6px;
+    font-size: 0.9em; opacity: 0.85;
+  }
+  input[type="range"] {
+    width: 100%; -webkit-appearance: none; height: 6px;
+    border-radius: 3px; background: rgba(255,255,255,0.2); outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 20px; height: 20px;
+    border-radius: 50%; background: #ffd700; cursor: pointer;
+  }
+
+  .check-group { display: flex; flex-wrap: wrap; gap: 12px; margin: 10px 0; }
+  .check-group label {
+    display: flex; align-items: center; gap: 6px; padding: 8px 14px;
+    border-radius: 8px; background: rgba(255,255,255,0.06); cursor: pointer; font-size: 0.9em;
+  }
+
+  .btn-row { display: flex; gap: 12px; justify-content: center; margin-top: 20px; flex-wrap: wrap; }
+  .btn {
+    padding: 14px 32px; border-radius: 12px; border: none;
+    font-size: 1.05em; font-weight: 600; cursor: pointer; transition: all 0.3s;
+  }
+  .btn-generate { background: linear-gradient(135deg, #f093fb, #f5576c); color: #fff; min-width: 200px; }
+  .btn-generate:hover { transform: scale(1.05); box-shadow: 0 4px 20px rgba(245,87,108,0.4); }
+  .btn-stop { background: rgba(255,255,255,0.15); color: #fff; }
+  .btn-download { background: rgba(255,215,0,0.2); color: #ffd700; border: 1px solid #ffd700; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; }
+  .btn-sm {
+    padding: 10px 20px; border-radius: 10px; border: none;
+    font-size: 0.95em; font-weight: 600; cursor: pointer; transition: all 0.3s;
+  }
+
+  .waveform-box {
+    background: rgba(0,0,0,0.3); border-radius: 12px;
+    height: 120px; margin-top: 16px; position: relative; overflow: hidden;
+  }
+  canvas { width: 100%; height: 100%; }
+  .status { text-align: center; padding: 10px; font-size: 0.85em; opacity: 0.6; }
+  .badge {
+    display: inline-block; padding: 2px 8px; border-radius: 10px;
+    background: rgba(255,215,0,0.2); color: #ffd700; font-size: 0.75em;
+    margin-left: 6px; vertical-align: middle;
+  }
+
+  .loading-overlay {
+    position: fixed; inset: 0; background: rgba(15,12,41,0.95);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    z-index: 999; transition: opacity 0.5s;
+  }
+  .loading-overlay.hidden { opacity: 0; pointer-events: none; }
+  .spinner { font-size: 3em; animation: bounce 0.6s infinite alternate; }
+  @keyframes bounce { to { transform: translateY(-10px); } }
+
+  /* ── Piano Keyboard ── */
+  .piano-wrapper { overflow-x: auto; padding: 0px 0; }
+  .piano {
+    display: flex; position: relative; height: 130px;
+    margin: 0 auto; user-select: none;
+  }
+  .key-white {
+    width: 48px; height: 120px; background: linear-gradient(180deg, #f5f5f5, #e0e0e0);
+    border: 1px solid #999; border-radius: 0 0 6px 6px;
+    cursor: pointer; position: relative; z-index: 1;
+    display: flex; align-items: flex-end; justify-content: center;
+    padding-bottom: 10px; font-size: 0.7em; color: #666;
+    transition: background 0.08s;
+  }
+  .key-white:hover { background: linear-gradient(180deg, #fff, #f0e6ff); }
+  .key-white.active { background: linear-gradient(180deg, #f093fb, #d67bff) !important; }
+  .key-black {
+    width: 30px; height: 75px;
+    background: linear-gradient(180deg, #333, #111);
+    border: 1px solid #000; border-radius: 0 0 4px 4px;
+    cursor: pointer; position: absolute; z-index: 2;
+    transition: background 0.08s;
+  }
+  .key-black:hover { background: linear-gradient(180deg, #555, #222); }
+  .key-black.active { background: linear-gradient(180deg, #f5576c, #c9302c) !important; }
+
+  /* ── Sequence Display ── */
+  .seq-display {
+    display: flex; gap: 4px; flex-wrap: wrap; min-height: 50px;
+    padding: 12px; background: rgba(0,0,0,0.3); border-radius: 10px;
+    margin: 12px 0; align-items: center;
+  }
+  .seq-note {
+    padding: 6px 10px; border-radius: 6px; font-size: 0.8em; font-weight: 600;
+    animation: popIn 0.15s ease-out;
+  }
+  .seq-note.white-note { background: rgba(240,147,251,0.3); color: #f093fb; }
+  .seq-note.black-note { background: rgba(245,87,108,0.3); color: #f5576c; }
+  .seq-note.rest { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.3); }
+  @keyframes popIn { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+  .seq-placeholder { opacity: 0.3; font-size: 0.9em; width: 100%; text-align: center; }
+
+  /* ── Sample Selector ── */
+  .sample-selector {
+    display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 10px 0;
+  }
+  .sample-selector select {
+    padding: 10px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.08); color: #fff; font-size: 0.95em;
+    cursor: pointer; min-width: 200px;
+  }
+  .sample-selector select option { background: #24243e; color: #fff; }
+
+  /* ── Random Pattern Buttons ── */
+  .pattern-row { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
+  .pattern-btn {
+    padding: 8px 16px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.2);
+    background: transparent; color: #fff; cursor: pointer; font-size: 0.85em;
+    transition: all 0.2s;
+  }
+  .pattern-btn:hover { background: rgba(255,255,255,0.15); }
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loading">
+  <div class="spinner">🐾</div>
+  <p style="margin-top:16px">載入緊音效素材...</p>
+</div>
+
+<div class="container">
+  <h1>🐾 Pet Sound Mixer</h1>
+
+  <!-- ══════ TAB BAR ══════ -->
+  <div class="tab-bar" style="margin-bottom: 10px;">
+    <button class="tab-btn active" data-tab="random">🎲 Random Mix</button>
+    <button class="tab-btn" data-tab="piano">🎹 Piano Sequence</button>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       TAB 1 : RANDOM MIX (原有功能)
+       ══════════════════════════════════════════════ -->
+  <div class="tab-content active" id="tab-random">
+    <div class="panel">
+      <h2>🎯 選擇動物</h2>
+      <div class="animal-toggle" id="animal-toggle"></div>
+    </div>
+    <div class="panel">
+      <h2>🔊 聲音類型</h2>
+      <div class="check-group" id="sound-types"></div>
+    </div>
+    <div class="panel">
+      <h2>🎛️ 參數調節</h2>
+      <div class="slider-group">
+        <label><span>📎 片段數量</span><span id="val-clips">3</span></label>
+        <input type="range" id="clips" min="2" max="20" value="3">
+      </div>
+      <div class="slider-group">
+        <label><span>🎵 音高變化 (semitones)</span><span id="val-pitch">±2</span></label>
+        <input type="range" id="pitch" min="0" max="6" value="2" step="0.5">
+      </div>
+      <div class="slider-group">
+        <label><span>⏱️ 節奏密度</span><span id="val-density">50%</span></label>
+        <input type="range" id="density" min="10" max="100" value="50">
+      </div>
+      <div class="slider-group">
+        <label><span>🔊 音量隨機度</span><span id="val-vol">30%</span></label>
+        <input type="range" id="vol-rand" min="0" max="80" value="30">
+      </div>
+      <div class="slider-group">
+        <label><span>🏛️ 混響 (Reverb)</span><span id="val-reverb">20%</span></label>
+        <input type="range" id="reverb" min="0" max="100" value="20">
+      </div>
+    </div>
+    <div class="btn-row" style="margin-bottom: 10px;">
+      <button class="btn btn-generate" id="btn-gen" disabled>🎲 隨機生成</button>
+      <button class="btn btn-stop" id="btn-replay" disabled>🔁 重播</button>
+      <button class="btn btn-stop" id="btn-stop">⏹ 停止</button>
+      <button class="btn btn-download" id="btn-dl">💾 下載 WAV</button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       TAB 2 : PIANO SEQUENCE (新功能)
+       ══════════════════════════════════════════════ -->
+  <div class="tab-content" id="tab-piano">
+
+    <!-- Instrument Sample Picker -->
+    <div class="panel">
+      <h2>🎸 選擇音色（邊個 Sample 做樂器）</h2>
+      <div class="sample-selector">
+        <select id="piano-sample-select">
+          <!-- Dynamic -->
+        </select>
+        <button class="btn-sm btn-stop" id="btn-preview-sample">👂 試聽原音</button>
+      </div>
+      <div class="slider-group" style="margin-top: 16px;">
+        <label><span>🎵 Base Note（原音對應邊個琴鍵）</span><span id="val-base">C4</span></label>
+        <input type="range" id="base-note" min="48" max="72" value="60">
+      </div>
+    </div>
+
+    <!-- Piano Keyboard -->
+    <div class="panel">
+      <h2>🎹 琴鍵（撳嚟輸入 Sequence）</h2>
+      <div class="piano-wrapper">
+        <div class="piano" id="piano-keyboard"></div>
+      </div>
+    </div>
+
+    <!-- Random Patterns -->
+    <div class="panel">
+      <h2>🎲 Random Pattern 生成</h2>
+      <div class="pattern-row" id="pattern-row">
+        <button class="pattern-btn" data-pattern="lazy">😺 懶洋洋</button>
+        <button class="pattern-btn" data-pattern="excited">🐕 興奮</button>
+        <button class="pattern-btn" data-pattern="cute">🐱 可愛</button>
+        <button class="pattern-btn" data-pattern="dramatic">🎭 戲劇性</button>
+        <button class="pattern-btn" data-pattern="fight">🙀 打交</button>
+        <button class="pattern-btn" data-pattern="lullaby">🌙 搖籃曲</button>
+        <button class="pattern-btn" data-pattern="chaos">🌪️ 混亂</button>
+        <button class="pattern-btn" data-pattern="question">❓ 問答</button>
+      </div>
+      <div class="slider-group">
+        <label><span>🔢 音符數量</span><span id="val-pnotes">5</span></label>
+        <input type="range" id="pattern-notes" min="4" max="32" value="5">
+      </div>
+    </div>
+
+    <!-- Sequence Display -->
+    <div class="panel">
+      <h2>📝 Sequence
+        <span class="badge" id="seq-count">0 notes</span>
+      </h2>
+      <div class="seq-display" id="seq-display">
+        <div class="seq-placeholder">撳琴鍵輸入音符，或用下面嘅 Random Pattern 🎵</div>
+      </div>
+      <div class="btn-row" style="margin-top:14px">
+        <button class="btn-sm btn-stop" id="btn-seq-undo">↩️ Undo</button>
+        <button class="btn-sm btn-stop" id="btn-seq-rest">⏸ 加休止符</button>
+        <button class="btn-sm btn-stop" id="btn-seq-clear">🗑️ 清除</button>
+      </div>
+    </div>
+
+    <!-- Playback Controls -->
+    <div class="panel">
+      <h2>🎛️ 播放設定</h2>
+      <div class="slider-group">
+        <label><span>⏱️ BPM (速度)</span><span id="val-bpm">120</span></label>
+        <input type="range" id="piano-bpm" min="40" max="240" value="120">
+      </div>
+      <div class="slider-group">
+        <label><span>🏛️ 混響</span><span id="val-p-reverb">15%</span></label>
+        <input type="range" id="piano-reverb" min="0" max="100" value="15">
+      </div>
+    </div>
+
+    <div class="btn-row"style="margin-bottom: 10px;">
+      <button class="btn btn-generate" id="btn-piano-play" disabled>▶️ 播放 Sequence</button>
+      <button class="btn btn-stop" id="btn-piano-replay" disabled>🔁 重播</button>
+      <button class="btn btn-stop" id="btn-piano-stop">⏹ 停止</button>
+      <button class="btn btn-download" id="btn-piano-dl">💾 下載 WAV</button>
+    </div>
+  </div>
+
+  <!-- ══════ SHARED: Waveform ══════ -->
+  <div class="panel">
+    <h2>📊 波形預覽</h2>
+    <div class="waveform-box"><canvas id="waveform"></canvas></div>
+  </div>
+  <div class="status" id="status">載入緊...</div>
+</div>
+
+<script>
+// ============================================================
+//  EMOJI & UTILS
+// ============================================================
+const EMOJI = {
+  cat:'🐱',dog:'🐶',bird:'🐦',hamster:'🐹',rabbit:'🐰',frog:'🐸',
+  meow:'😺',purr:'😻',hiss:'🙀',trill:'😸',yowl:'😿',chatter:'😼',
+  bark:'🐕',whimper:'🥺',growl:'😠',howl:'🌙',pant:'😮‍💨',yelp:'😯',
+  chirp:'🎵',tweet:'🎶',squawk:'📢',_general:'🔊',
+};
+function getEmoji(k){ return EMOJI[k]||'🔊'; }
+function cap(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
+function mapRange(v,a,b,c,d){ return c+(v-a)*(d-c)/(b-a); }
+function setStatus(m){ document.getElementById('status').textContent=m; }
+
+// ============================================================
+//  NOTE HELPERS
+// ============================================================
+const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+function midiToName(n){ return NOTE_NAMES[n%12]+(Math.floor(n/12)-1); }
+function isBlackKey(n){ return [1,3,6,8,10].includes(n%12); }
+
+// ============================================================
+//  STATE
+// ============================================================
+let manifest = null, audioCtx = null, sampleBuffers = {};
+let scheduledSources = [], lastRenderedBuffer = null, activeAnimal = null;
+
+// Piano state
+let pianoSequence = [];  // [{ midi, name, isRest }]
+let allSampleKeys = [];  // ['cat/meow/file.wav', ...]
+
+function getAudioCtx(){
+  if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+  return audioCtx;
+}
+
+// ============================================================
+//  INIT
+// ============================================================
+async function init(){
+  try {
+    const resp = await fetch('manifest.json');
+    if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    manifest = await resp.json();
+  } catch(e){
+    document.getElementById('loading').innerHTML =
+      `<p style="color:#f5576c;font-size:1.2em">⚠️ 搵唔到 manifest.json</p>
+       <p style="margin-top:10px;opacity:0.7">請先行 <code style="background:rgba(255,255,255,0.1);padding:4px 8px;border-radius:4px">npm run manifest</code></p>`;
+    return;
+  }
+  const animals = Object.keys(manifest.animals);
+  if(!animals.length){
+    document.getElementById('loading').innerHTML =
+      `<p style="color:#ffd700">📁 samples/ 入面未有音效檔案</p>`;
+    return;
+  }
+  buildAnimalButtons(animals);
+  selectAnimal(animals[0]);
+  await preloadAllSamples();
+
+  // Piano init
+  buildPianoKeyboard();
+  buildSampleSelector();
+  setupPianoEvents();
+
+  document.getElementById('btn-gen').disabled = false;
+  document.getElementById('btn-piano-play').disabled = false;
+  document.getElementById('loading').classList.add('hidden');
+  setStatus(`✅ 已載入 ${manifest._summary.totalFiles} 個音效`);
+}
+
+// ============================================================
+//  TAB SWITCHING
+// ============================================================
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-'+btn.dataset.tab).classList.add('active');
+  });
+});
+
+// ============================================================
+//  MANIFEST / SAMPLE LOADING (same as before)
+// ============================================================
+function buildAnimalButtons(animals){
+  const c=document.getElementById('animal-toggle'); c.innerHTML='';
+  for(const a of animals){
+    const info=manifest._summary.animals[a];
+    const btn=document.createElement('button');
+    btn.className='animal-btn'; btn.dataset.animal=a;
+    btn.innerHTML=`${getEmoji(a)} ${cap(a)} <span class="badge">${info.total}</span>`;
+    btn.addEventListener('click',()=>selectAnimal(a)); c.appendChild(btn);
+  }
+  if(animals.length>1){
+    const btn=document.createElement('button');
+    btn.className='animal-btn'; btn.dataset.animal='_mix';
+    btn.innerHTML=`${animals.map(a=>getEmoji(a)).join('')} 混合 <span class="badge">${manifest._summary.totalFiles}</span>`;
+    btn.addEventListener('click',()=>selectAnimal('_mix')); c.appendChild(btn);
+  }
+}
+
+function selectAnimal(animal){
+  activeAnimal=animal;
+  document.querySelectorAll('.animal-btn').forEach(b=>b.classList.toggle('active',b.dataset.animal===animal));
+  const c=document.getElementById('sound-types'); c.innerHTML='';
+  const animals=animal==='_mix'?Object.keys(manifest.animals):[animal];
+  for(const a of animals){
+    for(const[type,info] of Object.entries(manifest.animals[a]?.types||{})){
+      const label=document.createElement('label');
+      label.innerHTML=`<input type="checkbox" value="${a}/${type}" checked>
+        ${getEmoji(type)} ${cap(type)}
+        ${animals.length>1?`<span style="opacity:0.5;font-size:0.8em">(${cap(a)})</span>`:''}
+        <span class="badge">${info.count}</span>`;
+      c.appendChild(label);
+    }
+  }
+}
+
+async function preloadAllSamples(){
+  const ctx=getAudioCtx(); const tasks=[];
+  allSampleKeys=[];
+  for(const[animal,data] of Object.entries(manifest.animals)){
+    for(const[type,info] of Object.entries(data.types)){
+      for(const file of info.files){
+        const key=`${animal}/${type}/${file}`;
+        allSampleKeys.push(key);
+        if(!sampleBuffers[key]){
+          tasks.push(
+            fetch(`samples/${key}`)
+              .then(r=>{ if(!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
+              .then(b=>ctx.decodeAudioData(b))
+              .then(d=>{ sampleBuffers[key]=d; })
+              .catch(e=>console.warn(`⚠️ ${key}`,e))
+          );
+        }
+      }
+    }
+  }
+  if(tasks.length){ setStatus(`載入緊 ${tasks.length} 個音效...`); await Promise.all(tasks); }
+}
+
+function getSelectedBuffers(){
+  const checked=document.querySelectorAll('#sound-types input:checked');
+  const buffers=[];
+  for(const cb of checked){
+    const[animal,type]=cb.value.split('/');
+    const info=manifest.animals[animal]?.types[type];
+    if(!info)continue;
+    for(const file of info.files){
+      const key=`${animal}/${type}/${file}`;
+      if(sampleBuffers[key]) buffers.push(sampleBuffers[key]);
+    }
+  }
+  return buffers;
+}
+
+// ============================================================
+//  AUDIO HELPERS (shared)
+// ============================================================
+function createReverbIR(ctx,dur=2,decay=2){
+  const r=ctx.sampleRate,l=r*dur,ir=ctx.createBuffer(2,l,r);
+  for(let ch=0;ch<2;ch++){const d=ir.getChannelData(ch);for(let i=0;i<l;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/l,decay);}
+  return ir;
+}
+function stopAll(){
+  scheduledSources.forEach(s=>{try{s.stop();}catch(e){}});
+  scheduledSources=[];
+}
+
+function drawWaveform(buffer){
+  const canvas=document.getElementById('waveform');
+  const ctx=canvas.getContext('2d');
+  const dpr=window.devicePixelRatio||1;
+  const rect=canvas.getBoundingClientRect();
+  canvas.width=rect.width*dpr; canvas.height=rect.height*dpr;
+  ctx.scale(dpr,dpr);
+  const W=rect.width,H=rect.height,data=buffer.getChannelData(0);
+  const step=Math.ceil(data.length/W);
+  ctx.clearRect(0,0,W,H);
+  const grad=ctx.createLinearGradient(0,0,W,0);
+  grad.addColorStop(0,'#f093fb'); grad.addColorStop(1,'#f5576c');
+  ctx.fillStyle=grad;
+  for(let i=0;i<W;i++){
+    let min=1,max=-1;
+    for(let j=0;j<step;j++){const v=data[i*step+j]||0;if(v<min)min=v;if(v>max)max=v;}
+    const yH=((1+max)/2)*H, yL=((1+min)/2)*H;
+    ctx.fillRect(i,yH,1.5,yL-yH||1);
+  }
+}
+
+function downloadRenderedWAV(){
+  if(!lastRenderedBuffer){setStatus('⚠️ 請先生成音效！');return;}
+  const buf=lastRenderedBuffer,numCh=buf.numberOfChannels,length=buf.length*numCh*2;
+  const wavBuf=new ArrayBuffer(44+length),view=new DataView(wavBuf);
+  const ws=(o,s)=>{for(let i=0;i<s.length;i++)view.setUint8(o+i,s.charCodeAt(i));};
+  ws(0,'RIFF');view.setUint32(4,36+length,true);ws(8,'WAVE');
+  ws(12,'fmt ');view.setUint32(16,16,true);view.setUint16(20,1,true);
+  view.setUint16(22,numCh,true);view.setUint32(24,buf.sampleRate,true);
+  view.setUint32(28,buf.sampleRate*numCh*2,true);view.setUint16(32,numCh*2,true);
+  view.setUint16(34,16,true);ws(36,'data');view.setUint32(40,length,true);
+  const chs=[];for(let ch=0;ch<numCh;ch++)chs.push(buf.getChannelData(ch));
+  let off=44;
+  for(let i=0;i<buf.length;i++)for(let ch=0;ch<numCh;ch++){
+    view.setInt16(off,Math.max(-1,Math.min(1,chs[ch][i]))*0x7FFF,true);off+=2;
+  }
+  const blob=new Blob([wavBuf],{type:'audio/wav'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`pet_sound_${Date.now()}.wav`;
+  a.click(); URL.revokeObjectURL(a.href);
+  setStatus('已下載 WAV 💾');
+}
+
+// ============================================================
+//  RANDOM MIX (Tab 1 — 原有)
+// ============================================================
+async function generateRandomMix(){
+  const ctx=getAudioCtx();
+  if(ctx.state==='suspended') await ctx.resume();
+  const clips=+document.getElementById('clips').value;
+  const pitchR=+document.getElementById('pitch').value;
+  const density=+document.getElementById('density').value;
+  const volRand=+document.getElementById('vol-rand').value/100;
+  const reverbAmt=+document.getElementById('reverb').value/100;
+  const pool=getSelectedBuffers();
+  if(!pool.length){setStatus('⚠️ 請至少選擇一種聲音類型！');return;}
+  stopAll();
+  const maxP=mapRange(density,10,100,1.2,0.08),minP=maxP*0.3;
+  let totalDur=0;const seq=[];let lastIdx=-1;
+  for(let i=0;i<clips;i++){
+    let idx;do{idx=Math.floor(Math.random()*pool.length);}while(pool.length>1&&idx===lastIdx);
+    lastIdx=idx;
+    const buf=pool[idx],semi=(Math.random()*2-1)*pitchR,rate=Math.pow(2,semi/12);
+    const gain=1-(Math.random()*volRand),pause=minP+Math.random()*(maxP-minP);
+    seq.push({buffer:buf,pitchRate:rate,gain,startTime:totalDur});
+    totalDur+=buf.duration/rate+pause;
+  }
+  const offCtx=new OfflineAudioContext(2,Math.ceil(totalDur*ctx.sampleRate)+ctx.sampleRate,ctx.sampleRate);
+  const conv=offCtx.createConvolver();conv.buffer=createReverbIR(offCtx,2.5,2.5);
+  const dry=offCtx.createGain(),wet=offCtx.createGain();
+  dry.gain.value=1;wet.gain.value=reverbAmt*0.7;
+  conv.connect(wet);wet.connect(offCtx.destination);dry.connect(offCtx.destination);
+  for(const item of seq){
+    const src=offCtx.createBufferSource();src.buffer=item.buffer;src.playbackRate.value=item.pitchRate;
+    const g=offCtx.createGain(),dur=item.buffer.duration/item.pitchRate,ft=Math.min(0.03,dur*0.1);
+    g.gain.setValueAtTime(0,item.startTime);
+    g.gain.linearRampToValueAtTime(item.gain,item.startTime+ft);
+    g.gain.setValueAtTime(item.gain,item.startTime+dur-ft);
+    g.gain.linearRampToValueAtTime(0,item.startTime+dur);
+    src.connect(g);g.connect(dry);g.connect(conv);src.start(item.startTime);
+  }
+  setStatus('生成緊音效... 🎵');
+  const rendered=await offCtx.startRendering();
+  lastRenderedBuffer=rendered;
+  const ps=ctx.createBufferSource();ps.buffer=rendered;ps.connect(ctx.destination);
+  ps.start();scheduledSources.push(ps);
+  ps.onended = () => {
+    setStatus('播放完成 ✅ — 撳🔁重播再聽');
+    document.getElementById('btn-replay').disabled = false;
+  };
+  drawWaveform(rendered);
+  setStatus(`播放緊 ${clips} 段音效 (${totalDur.toFixed(1)}s) 🔊`);
+}
+function replayLast(){
+  if(!lastRenderedBuffer){ setStatus('⚠️ 未有生成過音效！'); return; }
+  const ctx = getAudioCtx();
+  if(ctx.state === 'suspended') ctx.resume();
+  stopAll();
+  const src = ctx.createBufferSource();
+  src.buffer = lastRenderedBuffer;
+  src.connect(ctx.destination);
+  src.start();
+  scheduledSources.push(src);
+  src.onended = () => setStatus('播放完成 ✅ — 撳🔁重播再聽');
+  setStatus(`重播緊 (${lastRenderedBuffer.duration.toFixed(1)}s) 🔊`);
+}
+// ============================================================
+//  🎹 PIANO KEYBOARD (Tab 2)
+// ============================================================
+const PIANO_START = 48; // C3
+const PIANO_END = 77;   // F5 (2.5 octaves)
+
+function buildPianoKeyboard(){
+  const kb = document.getElementById('piano-keyboard');
+  kb.innerHTML = '';
+
+  // White keys first
+  const whiteNotes = [];
+  for(let n=PIANO_START; n<=PIANO_END; n++){
+    if(!isBlackKey(n)) whiteNotes.push(n);
+  }
+
+  const whiteKeyWidth = 48;
+  kb.style.width = (whiteNotes.length * whiteKeyWidth) + 'px';
+
+  // White keys
+  whiteNotes.forEach((n, i) => {
+    const key = document.createElement('div');
+    key.className = 'key-white';
+    key.dataset.midi = n;
+    key.textContent = midiToName(n);
+    key.style.left = (i * whiteKeyWidth) + 'px';
+    key.style.position = 'absolute';
+    key.style.width = whiteKeyWidth + 'px';
+    key.addEventListener('mousedown', () => onPianoKey(n));
+    kb.appendChild(key);
+  });
+
+  // Black keys
+  for(let n=PIANO_START; n<=PIANO_END; n++){
+    if(!isBlackKey(n)) continue;
+    // Find position: black key sits between the white key before and after
+    const prevWhiteIdx = whiteNotes.indexOf(n - 1);
+    if(prevWhiteIdx === -1) continue;
+
+    const key = document.createElement('div');
+    key.className = 'key-black';
+    key.dataset.midi = n;
+    key.style.left = ((prevWhiteIdx + 1) * whiteKeyWidth - 15) + 'px';
+    key.addEventListener('mousedown', () => onPianoKey(n));
+    kb.appendChild(key);
+  }
+}
+
+function buildSampleSelector(){
+  const sel = document.getElementById('piano-sample-select');
+  sel.innerHTML = '';
+  for(const key of allSampleKeys){
+    if(!sampleBuffers[key]) continue;
+    const opt = document.createElement('option');
+    opt.value = key;
+    // Pretty name: "cat/meow/soft_meow.wav" → "🐱 Cat / 😺 Meow / soft_meow"
+    const [animal, type, file] = key.split('/');
+    const fileName = file.replace(/\.\w+$/, '').replace(/[_-]/g, ' ');
+    opt.textContent = `${getEmoji(animal)} ${cap(animal)} / ${getEmoji(type)} ${cap(type)} / ${fileName}`;
+    sel.appendChild(opt);
+  }
+}
+
+// ── Play a single note (instant feedback) ──
+function playNotePreview(midi){
+  const ctx = getAudioCtx();
+  const sampleKey = document.getElementById('piano-sample-select').value;
+  const buffer = sampleBuffers[sampleKey];
+  if(!buffer) return;
+
+  const baseNote = +document.getElementById('base-note').value;
+  const semitones = midi - baseNote;
+  const rate = Math.pow(2, semitones / 12);
+
+  const src = ctx.createBufferSource();
+  src.buffer = buffer;
+  src.playbackRate.value = rate;
+
+  const gain = ctx.createGain();
+  const dur = buffer.duration / rate;
+  gain.gain.setValueAtTime(0.8, ctx.currentTime);
+  gain.gain.linearRampToValueAtTime(0, ctx.currentTime + Math.min(dur, 2));
+
+  src.connect(gain);
+  gain.connect(ctx.destination);
+  src.start();
+
+  // Visual feedback
+  const keyEl = document.querySelector(`.piano [data-midi="${midi}"]`);
+  if(keyEl){
+    keyEl.classList.add('active');
+    setTimeout(()=>keyEl.classList.remove('active'), 200);
+  }
+}
+
+function onPianoKey(midi){
+  playNotePreview(midi);
+  pianoSequence.push({ midi, name: midiToName(midi), isRest: false, isBlack: isBlackKey(midi) });
+  renderSequence();
+}
+
+// ── Sequence display ──
+function renderSequence(){
+  const disp = document.getElementById('seq-display');
+  const countEl = document.getElementById('seq-count');
+
+  if(pianoSequence.length === 0){
+    disp.innerHTML = '<div class="seq-placeholder">撳琴鍵輸入音符，或用下面嘅 Random Pattern 🎵</div>';
+    countEl.textContent = '0 notes';
+    return;
+  }
+
+  disp.innerHTML = '';
+  let noteCount = 0;
+  for(const item of pianoSequence){
+    const el = document.createElement('span');
+    if(item.isRest){
+      el.className = 'seq-note rest';
+      el.textContent = '🤫';
+    } else {
+      el.className = `seq-note ${item.isBlack ? 'black-note' : 'white-note'}`;
+      el.textContent = item.name;
+      noteCount++;
+    }
+    disp.appendChild(el);
+  }
+  countEl.textContent = `${noteCount} notes`;
+}
+
+// ── Random Pattern Generation ──
+const SCALES = {
+  major:      [0, 2, 4, 5, 7, 9, 11],
+  minor:      [0, 2, 3, 5, 7, 8, 10],
+  pentatonic: [0, 2, 4, 7, 9],
+  blues:      [0, 3, 5, 6, 7, 10],
+  chromatic:  [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+  whole_tone: [0, 2, 4, 6, 8, 10],
+};
+
+const PATTERNS = {
+  lazy:     { scale: 'pentatonic', octave: [3,4], stepRange: [-2,2], restChance: 0.3, desc: '懶洋洋～慢慢叫' },
+  excited:  { scale: 'major',      octave: [4,5], stepRange: [-3,5], restChance: 0.05, desc: '興奮跳嚟跳去' },
+  cute:     { scale: 'pentatonic', octave: [4,5], stepRange: [-1,2], restChance: 0.15, desc: '可愛細碎聲' },
+  dramatic: { scale: 'minor',      octave: [3,5], stepRange: [-5,5], restChance: 0.2, desc: '好有戲劇感' },
+  fight:    { scale: 'chromatic',  octave: [3,5], stepRange: [-6,6], restChance: 0.05, desc: '瘋狂亂叫' },
+  lullaby:  { scale: 'pentatonic', octave: [3,4], stepRange: [-2,1], restChance: 0.25, desc: '溫柔搖籃曲' },
+  chaos:    { scale: 'chromatic',  octave: [3,5], stepRange: [-12,12],restChance: 0.1, desc: '完全隨機' },
+  question: { scale: 'major',      octave: [3,5], stepRange: [-2,4], restChance: 0.2, desc: '句尾上揚？' },
+};
+
+function generatePattern(patternName){
+  const p = PATTERNS[patternName];
+  const noteCount = +document.getElementById('pattern-notes').value;
+  const scale = SCALES[p.scale];
+  const baseOctave = p.octave[0];
+  const octaveRange = p.octave[1] - p.octave[0] + 1;
+
+  pianoSequence = [];
+  let currentScaleIdx = Math.floor(Math.random() * scale.length);
+  let currentOctave = baseOctave + Math.floor(Math.random() * octaveRange);
+
+  for(let i = 0; i < noteCount; i++){
+    // Rest?
+    if(Math.random() < p.restChance){
+      pianoSequence.push({ midi: 0, name: '-', isRest: true, isBlack: false });
+      continue;
+    }
+
+    // Step through scale
+    const step = Math.floor(Math.random() * (p.stepRange[1] - p.stepRange[0] + 1)) + p.stepRange[0];
+    currentScaleIdx += step;
+
+    // Wrap around scale with octave changes
+    while(currentScaleIdx >= scale.length){ currentScaleIdx -= scale.length; currentOctave++; }
+    while(currentScaleIdx < 0){ currentScaleIdx += scale.length; currentOctave--; }
+
+    // Clamp octave
+    currentOctave = Math.max(p.octave[0], Math.min(p.octave[1], currentOctave));
+
+    const midi = (currentOctave + 1) * 12 + scale[currentScaleIdx];
+
+    // "Question" pattern: last 2 notes go up
+    let finalMidi = midi;
+    if(patternName === 'question' && i >= noteCount - 2){
+      finalMidi = midi + (noteCount - i) * 2;
+    }
+
+    finalMidi = Math.max(PIANO_START, Math.min(PIANO_END, finalMidi));
+
+    pianoSequence.push({
+      midi: finalMidi,
+      name: midiToName(finalMidi),
+      isRest: false,
+      isBlack: isBlackKey(finalMidi),
+    });
+  }
+
+  renderSequence();
+  setStatus(`🎲 Generated: ${p.desc}`);
+}
+
+// ── Render & Play Sequence ──
+async function playPianoSequence(){
+  if(pianoSequence.length === 0){ setStatus('⚠️ Sequence 係空嘅！'); return; }
+
+  const ctx = getAudioCtx();
+  if(ctx.state === 'suspended') await ctx.resume();
+  stopAll();
+
+  const sampleKey = document.getElementById('piano-sample-select').value;
+  const buffer = sampleBuffers[sampleKey];
+  if(!buffer){ setStatus('⚠️ 揀唔到音效 sample'); return; }
+
+  const baseNote = +document.getElementById('base-note').value;
+  const bpm = +document.getElementById('piano-bpm').value;
+  const reverbAmt = +document.getElementById('piano-reverb').value / 100;
+  const beatDur = 60 / bpm; // seconds per beat
+
+  // Calculate total duration
+  let totalDur = 0;
+  const events = [];
+  for(const item of pianoSequence){
+    if(item.isRest){
+      totalDur += beatDur;
+      continue;
+    }
+    const semitones = item.midi - baseNote;
+    const rate = Math.pow(2, semitones / 12);
+    const noteDur = Math.min(buffer.duration / rate, beatDur * 2);
+    events.push({ startTime: totalDur, pitchRate: rate, duration: noteDur });
+    totalDur += beatDur;
+  }
+  totalDur += 1; // tail reverb
+
+  // Offline render
+  const offCtx = new OfflineAudioContext(2, Math.ceil(totalDur * ctx.sampleRate), ctx.sampleRate);
+
+  const conv = offCtx.createConvolver();
+  conv.buffer = createReverbIR(offCtx, 2, 2.5);
+  const dry = offCtx.createGain(), wet = offCtx.createGain();
+  dry.gain.value = 1; wet.gain.value = reverbAmt * 0.6;
+  conv.connect(wet); wet.connect(offCtx.destination); dry.connect(offCtx.destination);
+
+  for(const ev of events){
+    const src = offCtx.createBufferSource();
+    src.buffer = buffer;
+    src.playbackRate.value = ev.pitchRate;
+
+    const g = offCtx.createGain();
+    const ft = Math.min(0.02, ev.duration * 0.1);
+    g.gain.setValueAtTime(0, ev.startTime);
+    g.gain.linearRampToValueAtTime(0.8, ev.startTime + ft);
+    g.gain.setValueAtTime(0.8, ev.startTime + ev.duration - ft);
+    g.gain.linearRampToValueAtTime(0, ev.startTime + ev.duration);
+
+    src.connect(g); g.connect(dry); g.connect(conv);
+    src.start(ev.startTime);
+  }
+
+  setStatus('生成緊 Piano Sequence... 🎹');
+  const rendered = await offCtx.startRendering();
+  lastRenderedBuffer = rendered;
+
+  // Playback with visual sync
+  const playSrc = ctx.createBufferSource();
+  playSrc.buffer = rendered;
+  playSrc.connect(ctx.destination);
+  playSrc.start();
+  scheduledSources.push(playSrc);
+
+  // Animate keys during playback
+  let noteIdx = 0;
+  const startTime = ctx.currentTime;
+  function animateKeys(){
+    const elapsed = ctx.currentTime - startTime;
+    const currentBeat = Math.floor(elapsed / beatDur);
+    if(currentBeat !== noteIdx && currentBeat < pianoSequence.length){
+      noteIdx = currentBeat;
+      const item = pianoSequence[noteIdx];
+      if(item && !item.isRest){
+        const keyEl = document.querySelector(`.piano [data-midi="${item.midi}"]`);
+        if(keyEl){
+          keyEl.classList.add('active');
+          setTimeout(()=>keyEl.classList.remove('active'), 200);
+        }
+        // Highlight in sequence display
+        const noteEls = document.querySelectorAll('#seq-display .seq-note');
+        noteEls.forEach((el,i)=>{
+          el.style.outline = i===noteIdx ? '2px solid #ffd700' : 'none';
+          el.style.outlineOffset = '2px';
+        });
+      }
+    }
+    if(elapsed < totalDur) requestAnimationFrame(animateKeys);
+    else {
+      // Clear all highlights
+      document.querySelectorAll('#seq-display .seq-note').forEach(el=>el.style.outline='none');
+    }
+  }
+  requestAnimationFrame(animateKeys);
+
+  playSrc.onended = () => {
+    setStatus('播放完成 ✅ — 撳🔁重播再聽');
+    document.getElementById('btn-piano-replay').disabled = false;
+  };
+  drawWaveform(rendered);
+  setStatus(`播放緊 ${events.length} 個音符 @ ${bpm} BPM 🎹`);
+}
+
+// ============================================================
+//  KEYBOARD INPUT (computer keyboard → piano)
+// ============================================================
+const KEY_MAP = {
+  // Bottom row = lower octave (C3-B3)
+  'z':48,'s':49,'x':50,'d':51,'c':52,
+  'v':53,'g':54,'b':55,'h':56,'n':57,'j':58,'m':59,
+  // Top row = higher octave (C4-B4)
+  'q':60,'2':61,'w':62,'3':63,'e':64,
+  'r':65,'5':66,'t':67,'6':68,'y':69,'7':70,'u':71,
+  'i':72,'9':73,'o':74,'0':75,'p':76,
+  // Space = rest
+  ' ': -1,
+};
+
+document.addEventListener('keydown', (e) => {
+  // Only when piano tab is active
+  if(!document.getElementById('tab-piano').classList.contains('active')) return;
+  if(e.repeat) return;
+
+  const midi = KEY_MAP[e.key.toLowerCase()];
+  if(midi === undefined) return;
+  e.preventDefault();
+
+  if(midi === -1){
+    // Rest
+    pianoSequence.push({ midi:0, name:'-', isRest:true, isBlack:false });
+    renderSequence();
+  } else {
+    onPianoKey(midi);
+  }
+});
+
+// ============================================================
+//  EVENT WIRING
+// ============================================================
+function setupPianoEvents(){
+  // Pattern buttons
+  document.querySelectorAll('.pattern-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>generatePattern(btn.dataset.pattern));
+  });
+
+  // Sequence controls
+  document.getElementById('btn-seq-undo').addEventListener('click',()=>{
+    pianoSequence.pop(); renderSequence();
+  });
+  document.getElementById('btn-seq-rest').addEventListener('click',()=>{
+    pianoSequence.push({midi:0,name:'-',isRest:true,isBlack:false}); renderSequence();
+  });
+  document.getElementById('btn-seq-clear').addEventListener('click',()=>{
+    pianoSequence=[]; renderSequence();
+  });
+
+  // Preview sample
+  document.getElementById('btn-preview-sample').addEventListener('click',()=>{
+    const ctx=getAudioCtx();
+    const key=document.getElementById('piano-sample-select').value;
+    const buf=sampleBuffers[key];
+    if(!buf)return;
+    const src=ctx.createBufferSource();src.buffer=buf;src.connect(ctx.destination);src.start();
+    scheduledSources.push(src);
+  });
+
+  // Play / Stop / Download
+  document.getElementById('btn-piano-play').addEventListener('click', playPianoSequence);
+  document.getElementById('btn-piano-stop').addEventListener('click',()=>{stopAll();setStatus('已停止 ⏹');});
+  document.getElementById('btn-piano-dl').addEventListener('click', downloadRenderedWAV);
+  document.getElementById('btn-piano-replay').addEventListener('click', replayLast);
+  // Base note slider label
+  document.getElementById('base-note').addEventListener('input',e=>{
+    document.getElementById('val-base').textContent=midiToName(+e.target.value);
+  });
+}
+
+// ── Tab 1 sliders ──
+const sliderCfg={
+  'clips':{d:'val-clips',f:v=>v},'pitch':{d:'val-pitch',f:v=>`±${v}`},
+  'density':{d:'val-density',f:v=>`${v}%`},'vol-rand':{d:'val-vol',f:v=>`${v}%`},
+  'reverb':{d:'val-reverb',f:v=>`${v}%`},
+};
+for(const[id,c] of Object.entries(sliderCfg)){
+  document.getElementById(id).addEventListener('input',e=>{
+    document.getElementById(c.d).textContent=c.f(e.target.value);
+  });
+}
+// ── Tab 2 sliders ──
+document.getElementById('piano-bpm').addEventListener('input',e=>{
+  document.getElementById('val-bpm').textContent=e.target.value;
+});
+document.getElementById('piano-reverb').addEventListener('input',e=>{
+  document.getElementById('val-p-reverb').textContent=e.target.value+'%';
+});
+document.getElementById('pattern-notes').addEventListener('input',e=>{
+  document.getElementById('val-pnotes').textContent=e.target.value;
+});
+
+// ── Tab 1 buttons ──
+document.getElementById('btn-gen').addEventListener('click', generateRandomMix);
+document.getElementById('btn-stop').addEventListener('click',()=>{stopAll();setStatus('已停止 ⏹');});
+document.getElementById('btn-dl').addEventListener('click', downloadRenderedWAV);
+document.getElementById('btn-replay').addEventListener('click', replayLast);
+// ============================================================
+//  GO!
+// ============================================================
+init();
+</script>
+</body>
+</html>

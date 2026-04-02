@@ -1,0 +1,38 @@
+{
+  "_generated": "2026-04-02T01:56:19.782Z",
+  "animals": {
+    "cat": {
+      "types": {
+        "meow": {
+          "files": [
+            "meow01.wav",
+            "meow02.wav",
+            "meow03.wav",
+            "meow04.wav",
+            "meow05.wav",
+            "meow06.wav",
+            "meow07.wav",
+            "meow08.wav",
+            "meow09.wav",
+            "meow10.wav",
+            "meow11.wav",
+            "meow12.wav",
+            "meow13.wav"
+          ],
+          "count": 13
+        }
+      }
+    }
+  },
+  "_summary": {
+    "totalFiles": 13,
+    "animals": {
+      "cat": {
+        "total": 13,
+        "types": {
+          "meow": 13
+        }
+      }
+    }
+  }
+}
