@@ -1,0 +1,1374 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">  <!-- ← 加呢行 -->
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SYSTEM">
+<title>SYSTEM TRACKER</title>
+
+<!-- ===== PWA Icon：GitHub Pages 可以正常執行 Canvas ===== -->
+<script>
+(function () {
+  const size = 512;
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d');
+
+  const bg = ctx.createLinearGradient(0, 0, size, size);
+  bg.addColorStop(0, '#05050F');
+  bg.addColorStop(1, '#0D0D30');
+  ctx.fillStyle = bg;
+  ctx.beginPath();
+  ctx.roundRect(0, 0, size, size, 80);
+  ctx.fill();
+
+  const glow = ctx.createLinearGradient(0, 0, size, size);
+  glow.addColorStop(0,   'rgba(0,194,255,0.9)');
+  glow.addColorStop(0.5, 'rgba(139,92,246,0.9)');
+  glow.addColorStop(1,   'rgba(0,194,255,0.9)');
+  ctx.strokeStyle = glow;
+  ctx.lineWidth = 14;
+  ctx.beginPath();
+  ctx.roundRect(7, 7, size-14, size-14, 74);
+  ctx.stroke();
+
+  ctx.strokeStyle = 'rgba(0,194,255,0.15)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.roundRect(24, 24, size-48, size-48, 60);
+  ctx.stroke();
+
+  const line = ctx.createLinearGradient(60, 0, size-60, 0);
+  line.addColorStop(0,   'transparent');
+  line.addColorStop(0.5, 'rgba(0,194,255,0.8)');
+  line.addColorStop(1,   'transparent');
+  ctx.strokeStyle = line;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(60, 52);
+  ctx.lineTo(size-60, 52);
+  ctx.stroke();
+
+  ctx.shadowColor  = 'rgba(0,194,255,0.9)';
+  ctx.shadowBlur   = 50;
+  ctx.font         = '260px serif';
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('⚔️', size/2, size/2 - 28);
+
+  ctx.shadowBlur = 12;
+  ctx.font       = 'bold 58px Arial';
+  ctx.fillStyle  = '#00C2FF';
+  ctx.fillText('SYSTEM', size/2, size - 96);
+
+  const url = c.toDataURL('image/png');
+
+  // Apple Touch Icon
+  const al = document.createElement('link');
+  al.rel = 'apple-touch-icon';
+  al.href = url;
+  document.head.appendChild(al);
+
+  // Favicon
+  const fl = document.createElement('link');
+  fl.rel = 'icon'; fl.type = 'image/png'; fl.href = url;
+  document.head.appendChild(fl);
+
+  // ✅ 修正 start_url：用真實頁面 URL，唔用 '.'
+  const manifest = {
+    name:             'System Tracker',
+    short_name:       'SYSTEM',
+    display:          'standalone',
+    start_url:        window.location.href.split('?')[0], // ← 真實 URL，去掉 query string
+    background_color: '#05050F',
+    theme_color:      '#00C2FF',
+    icons: [{ src: url, sizes: '512x512', type: 'image/png' }]
+  };
+  const ml = document.createElement('link');
+  ml.rel  = 'manifest';
+  ml.href = URL.createObjectURL(
+    new Blob([JSON.stringify(manifest)], { type: 'application/json' })
+  );
+  document.head.appendChild(ml);
+})();
+</script>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Noto+Sans+HK:wght@400;500;700&display=swap');
+
+:root {
+  --bg:          #05050F;
+  --bg2:         #0A0A1A;
+  --card:        #0D0D20;
+  --card2:       #12122A;
+  --border:      #1E1E4A;
+  --border-glow: #2A2A7A;
+  --blue:        #00C2FF;
+  --blue-dim:    #0077AA;
+  --purple:      #8B5CF6;
+  --purple-dim:  #4C1D95;
+  --gold:        #FFD60A;
+  --gold-dim:    #B39000;
+  --green:       #00FF9C;
+  --green-dim:   #00664A;
+  --red:         #FF3864;
+  --red-dim:     #7A0020;
+  --text:        #C8D6E5;
+  --text-bright: #E8F4FF;
+  --text-dim:    #4A5568;
+  --text-mid:    #7A8FA6;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  font-family: 'Noto Sans HK', 'Rajdhani', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  padding-bottom: 72px;
+  background-image:
+    linear-gradient(rgba(0,194,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,194,255,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* ===== HEADER ===== */
+.header {
+  background: linear-gradient(180deg, #0A0A25 0%, #05050F 100%);
+  border-bottom: 1px solid var(--border-glow);
+  padding: 14px 16px 12px;
+  position: relative;
+  overflow: hidden;
+}
+.header::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--blue), var(--purple), transparent);
+}
+.header-top { display:flex; align-items:center; justify-content:space-between; }
+.header h1  {
+  font-family: 'Rajdhani', monospace;
+  font-size: 16px; font-weight: 700;
+  color: var(--blue); letter-spacing: 2px; text-transform: uppercase;
+}
+.header .player-name {
+  font-size: 11px; color: var(--text-mid);
+  margin-top: 3px; font-style: italic; letter-spacing: 0.3px;
+}
+.header-right { text-align: right; }
+.sys-date {
+  font-size: 10px; color: var(--text-dim);
+  letter-spacing: 1px; font-family: monospace;
+}
+/* Version Badge */
+.version-badge {
+  display: inline-block;
+  font-size: 9px;
+  font-family: 'Rajdhani', monospace;
+  font-weight: 700;
+  letter-spacing: 1px;
+  padding: 2px 7px;
+  border: 1px solid var(--border-glow);
+  border-radius: 2px;
+  color: var(--text-dim);
+  margin-top: 4px;
+  background: var(--card2);
+}
+
+/* ===== TAB BAR ===== */
+.tab-bar {
+  position: fixed; bottom:0; left:0; right:0;
+  background: var(--bg2);
+  border-top: 1px solid var(--border-glow);
+  display: flex; justify-content: space-around;
+  padding: 6px 0;
+  padding-bottom: max(6px, env(safe-area-inset-bottom));
+  z-index: 100;
+}
+.tab-btn {
+  background: none; border: none; color: var(--text-dim);
+  font-size: 9px; display: flex; flex-direction: column;
+  align-items: center; gap: 2px; cursor: pointer;
+  padding: 4px 8px; transition: color 0.2s;
+  font-family: inherit; letter-spacing: 0.5px; text-transform: uppercase;
+}
+.tab-btn .icon { font-size: 20px; }
+.tab-btn.active { color: var(--blue); }
+.tab-btn.active .icon { filter: drop-shadow(0 0 6px var(--blue)); }
+
+/* ===== PAGES ===== */
+.page { display:none; padding:12px; max-width:500px; margin:0 auto; }
+.page.active { display:block; }
+
+/* ===== CARDS ===== */
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 16px;
+  margin-bottom: 12px;
+  position: relative; overflow: hidden;
+}
+.card::before {
+  content: ''; position: absolute;
+  top:0; left:0; width:3px; height:100%;
+  background: var(--blue);
+}
+.card.gold-accent::before   { background: var(--gold); }
+.card.green-accent::before  { background: var(--green); }
+.card.purple-accent::before { background: var(--purple); }
+.card.red-accent::before    { background: var(--red); }
+.card.no-accent::before     { display: none; }
+.card-title {
+  font-size: 10px; color: var(--blue); margin-bottom: 14px;
+  font-weight: 700; text-transform: uppercase; letter-spacing: 2px;
+  font-family: 'Rajdhani', monospace;
+}
+.card.gold-accent .card-title   { color: var(--gold); }
+.card.green-accent .card-title  { color: var(--green); }
+.card.purple-accent .card-title { color: var(--purple); }
+.card.red-accent .card-title    { color: var(--red); }
+
+/* ===== STREAK ===== */
+.streak-panel {
+  text-align: center; padding: 20px 16px 16px;
+  background: linear-gradient(135deg, #0A0A25, #0D0520);
+  border: 1px solid var(--purple); border-radius: 4px;
+  margin-bottom: 12px; position: relative; overflow: hidden;
+}
+.streak-panel::after {
+  content: 'DAILY QUEST';
+  position: absolute; top:8px; right:12px;
+  font-size: 9px; color: var(--purple);
+  letter-spacing: 2px; font-family: 'Rajdhani', monospace;
+}
+.streak-number {
+  font-family: 'Rajdhani', monospace;
+  font-size: 80px; font-weight: 700; color: var(--gold);
+  text-shadow: 0 0 20px rgba(255,214,10,0.5), 0 0 40px rgba(255,214,10,0.2);
+  line-height: 1; letter-spacing: -2px;
+}
+.streak-label {
+  font-size: 11px; color: var(--text-mid);
+  letter-spacing: 3px; text-transform: uppercase;
+  margin-top: 6px; font-family: 'Rajdhani', monospace;
+}
+
+/* ===== STATS ===== */
+.stats-grid {
+  display: grid; grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px; margin-bottom: 12px;
+}
+.stat-cell {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 4px; padding: 12px 8px; text-align: center;
+}
+.stat-num {
+  font-size: 26px; font-weight: 700;
+  font-family: 'Rajdhani', monospace; color: var(--blue);
+  text-shadow: 0 0 10px rgba(0,194,255,0.4);
+}
+.stat-num.gold  { color:var(--gold);  text-shadow:0 0 10px rgba(255,214,10,0.4); }
+.stat-num.green { color:var(--green); text-shadow:0 0 10px rgba(0,255,156,0.4); }
+.stat-label {
+  font-size: 9px; color: var(--text-dim);
+  margin-top: 3px; letter-spacing: 1px;
+  text-transform: uppercase; font-family: 'Rajdhani', monospace;
+}
+
+/* ===== CHECKLIST ===== */
+.checklist-item {
+  display: flex; align-items: center;
+  padding: 12px 0; border-bottom: 1px solid var(--border);
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.checklist-item:last-of-type { border-bottom: none; }
+.check-box {
+  width:24px; height:24px;
+  border: 1px solid var(--border-glow); border-radius: 2px;
+  margin-right: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; flex-shrink: 0;
+  transition: all 0.2s; font-family: monospace; color: var(--green);
+}
+.checklist-item.checked .check-box {
+  background: rgba(0,255,156,0.1); border-color: var(--green);
+  box-shadow: 0 0 8px rgba(0,255,156,0.3);
+}
+.checklist-item.auto-checked .check-box {
+  background: rgba(0,194,255,0.1); border-color: var(--blue);
+  box-shadow: 0 0 8px rgba(0,194,255,0.3); color: var(--blue);
+}
+.check-label .main { font-size: 14px; font-weight: 500; color: var(--text-bright); }
+.check-label .sub  { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+.auto-tag {
+  display: inline-block; font-size: 9px;
+  background: rgba(0,194,255,0.15); color: var(--blue);
+  border: 1px solid var(--blue-dim); padding: 1px 5px;
+  border-radius: 2px; margin-left: 6px;
+  letter-spacing: 1px; font-family: 'Rajdhani', monospace; vertical-align: middle;
+}
+
+/* ===== WEEKEND ===== */
+.weekend-panel {
+  background: linear-gradient(135deg, #0A1520, #050F1A);
+  border: 1px solid var(--blue-dim); border-radius: 4px;
+  padding: 16px; margin-bottom: 12px;
+}
+.weekend-title {
+  font-size: 10px; color: var(--blue); letter-spacing: 2px;
+  text-transform: uppercase; font-family: 'Rajdhani', monospace;
+  font-weight: 700; margin-bottom: 10px;
+}
+.weekend-item {
+  display: flex; align-items: flex-start;
+  padding: 8px 0; border-bottom: 1px solid var(--border); gap: 10px;
+}
+.weekend-item:last-child { border-bottom: none; }
+.weekend-time {
+  font-size: 11px; color: var(--gold);
+  font-family: 'Rajdhani', monospace; font-weight: 700;
+  white-space: nowrap; min-width: 70px;
+}
+.weekend-desc .main { font-size: 13px; color: var(--text-bright); }
+.weekend-desc .sub  { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+
+/* ===== FORMS ===== */
+textarea, input[type="text"] {
+  width: 100%; background: var(--bg2);
+  border: 1px solid var(--border); border-radius: 2px;
+  padding: 10px 12px; color: var(--text-bright);
+  font-size: 14px; font-family: 'Noto Sans HK', sans-serif;
+  resize: vertical; outline: none; transition: border-color 0.2s;
+}
+textarea:focus, input[type="text"]:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 1px rgba(0,194,255,0.2);
+}
+textarea { min-height: 75px; }
+label {
+  display: block; font-size: 11px; color: var(--text-mid);
+  margin-bottom: 5px; font-weight: 600;
+  letter-spacing: 0.5px; text-transform: uppercase;
+}
+.form-group { margin-bottom: 14px; }
+
+/* ===== BUTTONS ===== */
+.btn {
+  width: 100%; padding: 13px; border: none; border-radius: 2px;
+  font-size: 13px; font-weight: 700; cursor: pointer;
+  font-family: 'Rajdhani', sans-serif; letter-spacing: 2px;
+  text-transform: uppercase; transition: all 0.2s;
+}
+.btn-primary {
+  background: linear-gradient(135deg, #0044AA, #0077CC);
+  color: var(--blue); border: 1px solid var(--blue-dim);
+  box-shadow: 0 0 15px rgba(0,194,255,0.15);
+}
+.btn-primary:hover   { box-shadow: 0 0 25px rgba(0,194,255,0.3); }
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ===== TOGGLE TABS ===== */
+.toggle-group { display:flex; gap:8px; margin-bottom:12px; }
+.toggle-btn {
+  flex:1; padding:9px;
+  border: 1px solid var(--border); background: var(--card);
+  color: var(--text-dim); border-radius: 2px;
+  font-size: 11px; cursor: pointer; text-align: center;
+  transition: all 0.2s; font-family: 'Rajdhani', sans-serif;
+  font-weight: 600; letter-spacing: 1px; text-transform: uppercase;
+}
+.toggle-btn.active {
+  border-color: var(--blue); color: var(--blue);
+  background: rgba(0,194,255,0.08);
+}
+
+/* ===== HISTORY ===== */
+.history-item { padding:12px 0; border-bottom:1px solid var(--border); }
+.history-item:last-child { border-bottom: none; }
+.history-date {
+  font-size: 10px; color: var(--blue); font-weight: 700;
+  letter-spacing: 1px; font-family: 'Rajdhani', monospace;
+}
+.history-content { font-size:13px; margin-top:4px; line-height:1.5; color:var(--text-bright); }
+.history-sub     { font-size:11px; color:var(--text-mid); margin-top:3px; }
+
+/* ===== EMOTION ===== */
+.emotion-toggle { display:flex; gap:10px; margin-bottom:14px; }
+.emotion-opt {
+  flex:1; padding:12px; text-align:center;
+  border: 1px solid var(--border); border-radius: 2px;
+  cursor: pointer; transition: all 0.2s;
+  font-family: inherit; background: var(--bg2); color: var(--text-dim);
+}
+.emotion-opt .emj  { font-size:22px; display:block; margin-bottom:4px; }
+.emotion-opt .etxt { font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase; font-family:'Rajdhani',sans-serif; }
+.emotion-opt.selected-yes { border-color:var(--red);   background:rgba(255,56,100,0.08);  color:var(--red); }
+.emotion-opt.selected-no  { border-color:var(--green); background:rgba(0,255,156,0.08);   color:var(--green); }
+.emotion-fields       { display:none; }
+.emotion-fields.show  { display:block; }
+
+/* ===== PLAN ===== */
+.plan-header {
+  display:flex; align-items:center; gap:10px;
+  padding:12px 14px; background:var(--card2);
+  border:1px solid var(--border-glow); border-radius:4px;
+  cursor:pointer; margin-bottom:2px; transition: border-color 0.2s;
+}
+.plan-header:hover { border-color: var(--blue-dim); }
+.plan-header .ph-icon  { font-size:20px; }
+.plan-header .ph-title { font-size:13px; font-weight:700; color:var(--text-bright); flex:1; }
+.plan-header .ph-badge {
+  font-size:9px; padding:2px 8px; border-radius:2px;
+  font-family:'Rajdhani',monospace; font-weight:700; letter-spacing:1px;
+}
+.badge-main  { background:rgba(139,92,246,0.2); color:var(--purple); border:1px solid var(--purple-dim); }
+.badge-sub   { background:rgba(0,194,255,0.15); color:var(--blue);   border:1px solid var(--blue-dim); }
+.badge-boost { background:rgba(255,214,10,0.15); color:var(--gold);  border:1px solid var(--gold-dim); }
+.plan-body {
+  display:none; background:var(--card);
+  border:1px solid var(--border); border-top:none;
+  border-radius:0 0 4px 4px; padding:14px; margin-bottom:8px;
+}
+.plan-body.open { display:block; }
+.plan-row {
+  display:flex; gap:10px; padding:9px 0;
+  border-bottom:1px solid var(--border); align-items:flex-start;
+}
+.plan-row:last-child { border-bottom:none; }
+.plan-time { font-size:11px; color:var(--gold); font-family:'Rajdhani',monospace; font-weight:700; min-width:65px; }
+.plan-info .main { font-size:13px; color:var(--text-bright); font-weight:500; }
+.plan-info .sub  { font-size:11px; color:var(--text-dim); margin-top:2px; line-height:1.4; }
+
+.month-card {
+  background:var(--card2); border:1px solid var(--border);
+  border-radius:4px; padding:12px 14px; margin-bottom:8px; position:relative;
+}
+.month-card::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; }
+.month-card.m1::before { background:linear-gradient(90deg,var(--purple),transparent); }
+.month-card.m2::before { background:linear-gradient(90deg,var(--blue),transparent); }
+.month-card.m3::before { background:linear-gradient(90deg,var(--gold),transparent); }
+.month-label { font-size:10px; color:var(--text-dim); letter-spacing:2px; font-family:'Rajdhani',monospace; font-weight:700; text-transform:uppercase; }
+.month-title { font-size:14px; color:var(--text-bright); font-weight:700; margin:4px 0; }
+.month-tags  { display:flex; flex-wrap:wrap; gap:5px; margin-top:6px; }
+.month-tag   { font-size:10px; padding:2px 8px; border-radius:2px; font-family:'Rajdhani',monospace; font-weight:600; letter-spacing:0.5px; }
+.tag-p { background:rgba(139,92,246,0.2); color:var(--purple); }
+.tag-s { background:rgba(0,194,255,0.15);  color:var(--blue); }
+.tag-k { background:rgba(0,255,156,0.1);   color:var(--green); }
+
+/* ===== RESOURCES ===== */
+.resource-card {
+  background:var(--card); border:1px solid var(--border);
+  border-radius:4px; overflow:hidden; margin-bottom:10px; transition:border-color 0.2s;
+}
+.resource-card:hover { border-color:var(--blue); }
+.resource-inner {
+  display:flex; align-items:center; padding:14px;
+  text-decoration:none; gap:14px;
+}
+.resource-icon {
+  width:44px; height:44px; border-radius:4px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:22px; flex-shrink:0;
+}
+.res-leadership { background:rgba(139,92,246,0.2); }
+.res-ai         { background:rgba(0,194,255,0.15); }
+.res-book       { background:rgba(255,214,10,0.15); }
+.res-stoic      { background:rgba(0,255,156,0.1); }
+.resource-name { font-size:14px; font-weight:700; color:var(--text-bright); }
+.resource-meta { font-size:11px; color:var(--text-dim); margin-top:3px; }
+.resource-tag  {
+  font-size:9px; padding:2px 7px; border-radius:2px;
+  font-family:'Rajdhani',monospace; font-weight:700; letter-spacing:1px;
+  margin-top:5px; display:inline-block;
+}
+.resource-arrow { font-size:16px; color:var(--text-dim); flex-shrink:0; }
+.res-section-title {
+  font-size:10px; color:var(--text-dim); letter-spacing:2px;
+  font-family:'Rajdhani',monospace; font-weight:700; text-transform:uppercase;
+  margin:14px 0 8px; padding-left:2px;
+}
+
+/* ===== REVIEW ===== */
+.review-banner {
+  background:linear-gradient(135deg,rgba(139,92,246,0.15),rgba(0,194,255,0.1));
+  border:1px solid var(--purple-dim); padding:12px 14px; border-radius:4px;
+  font-size:12px; color:var(--text-mid); line-height:1.6; margin-bottom:12px;
+}
+.review-banner strong { color:var(--purple); }
+
+/* ===== SAVE OVERLAY ===== */
+.save-overlay {
+  display:none; position:fixed; inset:0;
+  background:rgba(0,0,0,0.75); backdrop-filter:blur(3px);
+  z-index:999; align-items:center; justify-content:center;
+  flex-direction:column; gap:16px;
+}
+.save-overlay.active { display:flex; }
+.overlay-box {
+  background:var(--card2); border:1px solid var(--blue);
+  border-radius:4px; padding:28px 36px; text-align:center;
+  box-shadow:0 0 40px rgba(0,194,255,0.2);
+  position:relative; overflow:hidden;
+}
+.overlay-box::before {
+  content:''; position:absolute; top:0; left:0; right:0; height:2px;
+  background:linear-gradient(90deg,transparent,var(--blue),var(--purple),transparent);
+  animation:scan 1.5s linear infinite;
+}
+@keyframes scan { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }
+.overlay-spinner {
+  width:40px; height:40px;
+  border:2px solid var(--border);
+  border-top-color:var(--blue); border-right-color:var(--purple);
+  border-radius:50%; animation:spin 0.7s linear infinite; margin:0 auto 14px;
+}
+.overlay-title {
+  font-family:'Rajdhani',monospace; font-size:13px; font-weight:700;
+  color:var(--blue); letter-spacing:3px; text-transform:uppercase;
+}
+.overlay-sub { font-size:11px; color:var(--text-dim); margin-top:6px; letter-spacing:1px; }
+
+/* ===== MISC ===== */
+.sys-line {
+  height:1px;
+  background:linear-gradient(90deg,transparent,var(--blue-dim),transparent);
+  margin:12px 0;
+}
+.toast {
+  position:fixed; top:16px; left:50%;
+  transform:translateX(-50%) translateY(-80px);
+  background:var(--card2); border:1px solid var(--green);
+  color:var(--green); padding:10px 20px; border-radius:2px;
+  font-size:13px; font-weight:700; z-index:200;
+  transition:transform 0.3s; white-space:nowrap;
+  font-family:'Rajdhani',sans-serif; letter-spacing:1px; text-transform:uppercase;
+  box-shadow:0 0 20px rgba(0,255,156,0.2);
+}
+.toast.show  { transform:translateX(-50%) translateY(0); }
+.toast.error { border-color:var(--red); color:var(--red); box-shadow:0 0 20px rgba(255,56,100,0.2); }
+.loading { text-align:center; padding:30px; color:var(--text-dim); }
+.spinner {
+  display:inline-block; width:28px; height:28px;
+  border:2px solid var(--border); border-top-color:var(--blue);
+  border-radius:50%; animation:spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform:rotate(360deg); } }
+.empty-state { text-align:center; padding:24px; color:var(--text-dim); font-size:13px; letter-spacing:0.5px; }
+
+/* ===== LOGIN SCREEN ===== */
+.login-screen {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+  background-image:
+    linear-gradient(rgba(0,194,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,194,255,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+.login-screen.active { display: flex; }
+
+.login-box {
+  width: 100%;
+  max-width: 340px;
+  margin: 0 24px;
+  text-align: center;
+}
+.login-logo {
+  font-size: 64px;
+  margin-bottom: 8px;
+  filter: drop-shadow(0 0 20px rgba(0,194,255,0.5));
+}
+.login-title {
+  font-family: 'Rajdhani', monospace;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--blue);
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.login-sub {
+  font-size: 12px;
+  color: var(--text-dim);
+  letter-spacing: 1px;
+  margin-bottom: 32px;
+}
+.login-input-wrap { position: relative; margin-bottom: 12px; }
+.login-input {
+  width: 100%;
+  background: var(--card);
+  border: 1px solid var(--border-glow);
+  border-radius: 2px;
+  padding: 14px 48px 14px 16px;
+  color: var(--text-bright);
+  font-size: 16px;
+  font-family: monospace;
+  letter-spacing: 3px;
+  outline: none;
+  text-align: center;
+  transition: border-color 0.2s;
+}
+.login-input:focus { border-color: var(--blue); box-shadow: 0 0 0 1px rgba(0,194,255,0.2); }
+.login-input.error { border-color: var(--red); box-shadow: 0 0 0 1px rgba(255,56,100,0.2); }
+.login-toggle-pw {
+  position: absolute;
+  right: 14px; top: 50%;
+  transform: translateY(-50%);
+  background: none; border: none;
+  color: var(--text-dim); cursor: pointer;
+  font-size: 18px; padding: 4px;
+}
+.login-btn {
+  width: 100%; padding: 14px;
+  background: linear-gradient(135deg, #0044AA, #0077CC);
+  color: var(--blue); border: 1px solid var(--blue-dim);
+  border-radius: 2px; font-size: 13px; font-weight: 700;
+  font-family: 'Rajdhani', sans-serif; letter-spacing: 3px;
+  text-transform: uppercase; cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 0 20px rgba(0,194,255,0.15);
+}
+.login-btn:hover    { box-shadow: 0 0 30px rgba(0,194,255,0.3); }
+.login-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.login-error {
+  font-size: 12px;
+  color: var(--red);
+  margin-top: 10px;
+  letter-spacing: 1px;
+  font-family: 'Rajdhani', monospace;
+  min-height: 18px;
+}
+.login-hint {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 24px;
+  line-height: 1.6;
+}
+.logout-btn {
+  background: #f75454;
+  border: 1px solid var(--border-glow);
+  color: var(--text-dim);
+  font-size: 9px;
+  padding: 2px 7px;
+  border-radius: 2px;
+  cursor: pointer;
+  font-family: 'Rajdhani', monospace;
+  letter-spacing: 1px;
+  margin-left: 8px;
+  margin-top: 4px;
+  transition: all 0.2s;
+  display: inline-block;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.logout-btn:hover { border-color: var(--red); color: var(--red); }
+</style>
+</head>
+<body>
+<!-- ===== LOGIN SCREEN ===== -->
+<div class="login-screen active" id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">⚔️</div>
+    <div class="login-title">SYSTEM TRACKER</div>
+    <div class="login-sub">IDENTITY VERIFICATION REQUIRED</div>
+
+    <div class="login-input-wrap">
+      <input
+        class="login-input"
+        type="password"
+        id="key-input"
+        placeholder="Enter Access Key"
+        autocomplete="off"
+        onkeydown="if(event.key==='Enter') submitKey()"
+      >
+      <button class="login-toggle-pw" onclick="toggleKeyVisibility()" id="toggle-pw-btn" tabindex="-1">👁</button>
+    </div>
+
+    <button class="login-btn" onclick="submitKey()" id="login-btn">
+      ▶ AUTHENTICATE
+    </button>
+    <div class="login-error" id="login-error"></div>
+    <div class="login-hint">
+      Key 會儲存喺本機，下次自動登入。
+    </div>
+  </div>
+</div>
+
+<!-- ===== SAVE OVERLAY ===== -->
+<div class="save-overlay" id="save-overlay">
+  <div class="overlay-box">
+    <div class="overlay-spinner"></div>
+    <div class="overlay-title">UPLOADING...</div>
+    <div class="overlay-sub" id="overlay-sub">Syncing to Google Sheets</div>
+  </div>
+</div>
+
+<!-- ===== TOAST ===== -->
+<div class="toast" id="toast"></div>
+
+<!-- ===== HEADER ===== -->
+<div class="header">
+  <div class="header-top">
+    <div>
+      <h1>⚔ SYSTEM TRACKER</h1>
+      <div class="player-name">The road to leadership is forged one day at a time.</div>
+    </div>
+    <div class="header-right">
+      <div class="sys-date" id="sys-date">----/--/--</div>
+	  <div class="version-badge" id="version-badge">v2.1</div>
+	  <button class="logout-btn" onclick="logout()" title="登出">Logout</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== PAGE: 今日 ==================== -->
+<div class="page active" id="page-home">
+  <div class="loading" id="dashboard-loading">
+    <div class="spinner"></div>
+    <p style="margin-top:10px;font-size:12px;letter-spacing:1px">LOADING SYSTEM...</p>
+  </div>
+  <div id="dashboard-content" style="display:none">
+    <div class="streak-panel">
+      <div class="streak-number" id="streak-num">0</div>
+      <div class="streak-label">🔥 Consecutive Days</div>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-cell"><div class="stat-num gold"  id="total-days">0</div><div class="stat-label">Total Days</div></div>
+      <div class="stat-cell"><div class="stat-num"       id="leader-count">0</div><div class="stat-label">Leadership</div></div>
+      <div class="stat-cell"><div class="stat-num green" id="emotion-count">0</div><div class="stat-label">Emotion Log</div></div>
+    </div>
+
+    <!-- Weekday -->
+    <div id="weekday-panel">
+      <div class="card">
+        <div class="card-title" id="today-date-label">◈ Daily Quest</div>
+        <div class="checklist-item" data-key="morning" onclick="toggleCheck(this)">
+          <div class="check-box"></div>
+          <div class="check-label"><div class="main">🌅 朝早搭車</div><div class="sub">聽 Podcast：Leadership / 大人學</div></div>
+        </div>
+        <div class="checklist-item" data-key="lunch" onclick="toggleCheck(this)">
+          <div class="check-box"></div>
+          <div class="check-label"><div class="main">🍱 午休筆記 <span class="auto-tag">AUTO</span></div><div class="sub">寫完筆記自動完成</div></div>
+        </div>
+        <div class="checklist-item" data-key="evening" onclick="toggleCheck(this)">
+          <div class="check-box"></div>
+          <div class="check-label"><div class="main">🌆 放工搭車</div><div class="sub">聽 AI 資訊 / Hard Fork</div></div>
+        </div>
+        <div class="checklist-item" data-key="bedtime" onclick="toggleCheck(this)">
+          <div class="check-box"></div>
+          <div class="check-label"><div class="main">🌙 睡前反思 <span class="auto-tag">AUTO</span></div><div class="sub">儲存情緒日誌自動完成</div></div>
+        </div>
+        <div class="sys-line"></div>
+        <div class="form-group">
+          <label>今日備註（可選）</label>
+          <textarea id="daily-note" rows="2" placeholder="今日聽咗咩？有咩特別？"></textarea>
+        </div>
+        <button class="btn btn-primary" onclick="saveDailyCheckin()" id="btn-save-daily">▶ SAVE DAILY RECORD</button>
+      </div>
+    </div>
+
+    <!-- Saturday -->
+    <div id="saturday-panel" style="display:none">
+      <div class="weekend-panel">
+        <div class="weekend-title">⚔ Saturday Deep Dive · 週六任務</div>
+        <div class="weekend-item"><div class="weekend-time">13:00–13:45</div><div class="weekend-desc"><div class="main">📖 Crucial Conversations</div><div class="sub">讀 1 章，MacBook / Audiobook</div></div></div>
+        <div class="weekend-item"><div class="weekend-time">13:45–14:15</div><div class="weekend-desc"><div class="main">📋 整合本週筆記</div><div class="sub">回顧一週所有筆記，加「本週總結」</div></div></div>
+        <div class="weekend-item"><div class="weekend-time">14:15–14:30</div><div class="weekend-desc"><div class="main">🎙 30秒 Voice Memo</div><div class="sub">用自己話錄低本週最大 takeaway</div></div></div>
+        <div class="weekend-item"><div class="weekend-time">14:30–16:00</div><div class="weekend-desc"><div class="main">🎮 自由時間</div><div class="sub">完全放鬆，唔需要諗學習</div></div></div>
+      </div>
+      <div class="card green-accent">
+        <div class="card-title">◈ 係月尾最後一個週六？</div>
+        <p style="font-size:13px;color:var(--text-mid);margin-bottom:12px">記得去「回顧」頁面填寫本月 Monthly Review！</p>
+        <button class="btn btn-primary" onclick="switchPage('review', document.querySelectorAll('.tab-btn')[4])">▶ GO TO MONTHLY REVIEW</button>
+      </div>
+    </div>
+
+    <!-- Sunday -->
+    <div id="sunday-panel" style="display:none">
+      <div class="card gold-accent">
+        <div class="card-title">◈ 星期日 · 休息日</div>
+        <p style="font-size:32px;text-align:center;padding:16px 0">🛌</p>
+        <p style="font-size:13px;color:var(--text-mid);text-align:center;line-height:1.7">
+          今日係你嘅 <strong style="color:var(--gold)">Rest Day</strong><br>
+          唔需要學習。恢復精力先係長遠持續嘅關鍵。
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== PAGE: 筆記 ==================== -->
+<div class="page" id="page-notes">
+  <div class="toggle-group">
+    <button class="toggle-btn active" onclick="switchNoteTab('leadership',this)">📘 Leadership</button>
+    <button class="toggle-btn"        onclick="switchNoteTab('ai',this)">🤖 AI 見聞</button>
+  </div>
+  <div id="note-tab-leadership">
+    <div class="card purple-accent">
+      <div class="card-title">◈ New Leadership Note</div>
+      <div class="form-group"><label>今日學到</label><input type="text" id="lead-learned" placeholder="例：情緒爆發前停 3 秒"></div>
+      <div class="form-group"><label>我可以用喺</label><input type="text" id="lead-application" placeholder="例：下次開會有人耍太極嗰陣"></div>
+      <button class="btn btn-primary" onclick="saveLeadershipNote()">▶ SAVE NOTE</button>
+    </div>
+    <div class="card no-accent"><div class="card-title">◈ History</div><div id="leadership-history"><div class="loading"><div class="spinner"></div></div></div></div>
+  </div>
+  <div id="note-tab-ai" style="display:none">
+    <div class="card">
+      <div class="card-title">◈ New AI Note</div>
+      <div class="form-group"><label>AI 見聞</label><textarea id="ai-note" placeholder="今日聽到/睇到咩有趣嘅 AI 資訊？"></textarea></div>
+      <button class="btn btn-primary" onclick="saveAINote()">▶ SAVE NOTE</button>
+    </div>
+    <div class="card no-accent"><div class="card-title">◈ History</div><div id="ai-history"><div class="loading"><div class="spinner"></div></div></div></div>
+  </div>
+</div>
+
+<!-- ==================== PAGE: 情緒 ==================== -->
+<div class="page" id="page-emotion">
+  <div class="card red-accent">
+    <div class="card-title">◈ Emotion Log · 今日情緒記錄</div>
+    <label>今日有冇觸發情緒嘅事？</label>
+    <div class="emotion-toggle">
+      <div class="emotion-opt" onclick="selectTrigger(true,this)"><span class="emj">😤</span><span class="etxt">有觸發</span></div>
+      <div class="emotion-opt" onclick="selectTrigger(false,this)"><span class="emj">😌</span><span class="etxt">平靜</span></div>
+    </div>
+    <div class="emotion-fields" id="emotion-fields">
+      <div class="form-group"><label>咩事？</label><textarea id="emo-event" placeholder="例：開會有人耍太極，浪費晒時間..."></textarea></div>
+      <div class="form-group"><label>我點反應？</label><textarea id="emo-reaction" placeholder="例：忍唔住講咗兩句重話..."></textarea></div>
+      <div class="form-group"><label>結果如何？</label><textarea id="emo-outcome" placeholder="例：氣氛好差，之後都冇人出聲..."></textarea></div>
+      <div class="form-group"><label>重來一次，3秒暫停後我會？</label><textarea id="emo-alternative" placeholder="例：先問自己「我真正想要咩結果？」..."></textarea></div>
+    </div>
+    <button class="btn btn-primary" onclick="saveEmotion()" id="btn-save-emotion">▶ SAVE EMOTION LOG</button>
+  </div>
+  <div class="card no-accent"><div class="card-title">◈ Past Records</div><div id="emotion-history"><div class="loading"><div class="spinner"></div></div></div></div>
+</div>
+
+<!-- ==================== PAGE: 計劃 ==================== -->
+<div class="page" id="page-plan">
+  <div class="card gold-accent">
+    <div class="card-title">◈ 3-Month Roadmap</div>
+    <div class="month-card m1">
+      <div class="month-label">Month 01</div><div class="month-title">情緒覺察 + 習慣建立</div>
+      <div class="month-tags"><span class="month-tag tag-p">主修：Leadership EQ</span><span class="month-tag tag-s">副修：AI 資訊</span><span class="month-tag tag-k">技能：3秒暫停法</span></div>
+    </div>
+    <div class="month-card m2">
+      <div class="month-label">Month 02</div><div class="month-title">溝通框架 + 職場實戰</div>
+      <div class="month-tags"><span class="month-tag tag-p">深化：STATE 模型</span><span class="month-tag tag-s">加入：理財基礎</span><span class="month-tag tag-k">技能：Crucial Conversations</span></div>
+    </div>
+    <div class="month-card m3">
+      <div class="month-label">Month 03</div><div class="month-title">決策框架 + 理財紀律</div>
+      <div class="month-tags"><span class="month-tag tag-p">維持：Leadership</span><span class="month-tag tag-s">主力：投資理財</span><span class="month-tag tag-k">技能：個人決策系統</span></div>
+    </div>
+  </div>
+
+  <div class="plan-section">
+    <div class="plan-header" onclick="togglePlan(this)"><span class="ph-icon">📅</span><span class="ph-title">平日時間表（週一至五）</span><span class="ph-badge badge-main">WEEKDAY</span></div>
+    <div class="plan-body">
+      <div class="plan-row"><div class="plan-time">07:30</div><div class="plan-info"><div class="main">🌅 朝早搭車 ~30分鐘</div><div class="sub">一三五：The Emotionally Intelligent Leader｜二四：大人學</div></div></div>
+      <div class="plan-row"><div class="plan-time">12:30</div><div class="plan-info"><div class="main">🍱 午休後 ~10分鐘</div><div class="sub">寫一句 Leadership 筆記（今日學到 + 可以用喺）</div></div></div>
+      <div class="plan-row"><div class="plan-time">18:00</div><div class="plan-info"><div class="main">🌆 放工搭車 ~30分鐘</div><div class="sub">AI 每日科技新聞（5分鐘）或 Hard Fork（週更）</div></div></div>
+      <div class="plan-row"><div class="plan-time">22:45</div><div class="plan-info"><div class="main">🌙 睡前 ~15分鐘</div><div class="sub">填情緒日誌：有冇觸發？點反應？重來會點做？</div></div></div>
+    </div>
+  </div>
+
+  <div class="plan-section">
+    <div class="plan-header" onclick="togglePlan(this)"><span class="ph-icon">⚔️</span><span class="ph-title">週六 Deep Dive（13:00–14:30）</span><span class="ph-badge badge-boost">SATURDAY</span></div>
+    <div class="plan-body">
+      <div class="plan-row"><div class="plan-time">13:00</div><div class="plan-info"><div class="main">📖 Crucial Conversations</div><div class="sub">讀 / 聽 1 章</div></div></div>
+      <div class="plan-row"><div class="plan-time">13:45</div><div class="plan-info"><div class="main">📋 整合本週筆記</div><div class="sub">回顧所有筆記，加「本週總結」</div></div></div>
+      <div class="plan-row"><div class="plan-time">14:15</div><div class="plan-info"><div class="main">🎙 30秒 Voice Memo</div><div class="sub">錄低本週最大 takeaway</div></div></div>
+      <div class="plan-row"><div class="plan-time">14:30</div><div class="plan-info"><div class="main">🎮 自由時間</div><div class="sub">完全放鬆</div></div></div>
+    </div>
+  </div>
+
+  <div class="plan-section">
+    <div class="plan-header" onclick="togglePlan(this)"><span class="ph-icon">🛡️</span><span class="ph-title">防三分鐘熱度機制</span><span class="ph-badge badge-sub">SYSTEM</span></div>
+    <div class="plan-body">
+      <div class="plan-row"><div class="plan-time" style="color:var(--green)">法則 1</div><div class="plan-info"><div class="main">2 分鐘起步法</div><div class="sub">每個 session 只承諾做 2 分鐘。就算真係只做 2 分鐘都算完成。</div></div></div>
+      <div class="plan-row"><div class="plan-time" style="color:var(--green)">法則 2</div><div class="plan-info"><div class="main">唔好斷兩日</div><div class="sub">斷一日唔緊要。唔好連斷兩日。斷咗就最快補返一個最細嘅動作。</div></div></div>
+      <div class="plan-row"><div class="plan-time" style="color:var(--green)">法則 3</div><div class="plan-info"><div class="main">輸出 > 輸入</div><div class="sub">聽完/睇完，一定要「吐」返出嚟先算學咗。一句筆記都得。</div></div></div>
+    </div>
+  </div>
+
+  <div class="plan-section">
+    <div class="plan-header" onclick="togglePlan(this)"><span class="ph-icon">📊</span><span class="ph-title">每月 Review 5 條問題</span><span class="ph-badge badge-boost">MONTHLY</span></div>
+    <div class="plan-body">
+      <div class="plan-row"><div class="plan-time" style="color:var(--gold)">Q1</div><div class="plan-info"><div class="sub">呢個月我記得邊 3 個 concept / 技巧？</div></div></div>
+      <div class="plan-row"><div class="plan-time" style="color:var(--gold)">Q2</div><div class="plan-info"><div class="sub">我喺現實中用過邊一個？效果如何？</div></div></div>
+      <div class="plan-row"><div class="plan-time" style="color:var(--gold)">Q3</div><div class="plan-info"><div class="sub">情緒日誌入面，我有冇見到進步嘅 pattern？</div></div></div>
+      <div class="plan-row"><div class="plan-time" style="color:var(--gold)">Q4</div><div class="plan-info"><div class="sub">邊啲環節做得最順？邊啲最容易 skip？</div></div></div>
+      <div class="plan-row"><div class="plan-time" style="color:var(--gold)">Q5</div><div class="plan-info"><div class="sub">下個月想微調啲咩？</div></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== PAGE: 資源 ==================== -->
+<div class="page" id="page-resources">
+  <div class="res-section-title">🥇 主修 · Leadership &amp; EQ</div>
+  <div class="resource-card"><a class="resource-inner" href="https://podcasts.apple.com/us/podcast/emotionally-intelligent-leaders/id1517834428" target="_blank"><div class="resource-icon res-leadership">🎙</div><div class="resource-info"><div class="resource-name">The Emotionally Intelligent Leader</div><div class="resource-meta">Dr. B · Apple Podcast</div><span class="resource-tag" style="background:rgba(139,92,246,0.2);color:var(--purple)">一三五 朝早搭車</span></div><div class="resource-arrow">›</div></a></div>
+  <div class="resource-card"><a class="resource-inner" href="https://podcasts.apple.com/tw/podcast/%E5%A4%A7%E4%BA%BA%E7%9A%84small-talk/id1452688611" target="_blank"><div class="resource-icon res-leadership">🎓</div><div class="resource-info"><div class="resource-name">大人學 Podcast</div><div class="resource-meta">職涯發展 · 溝通技巧 · Apple Podcast</div><span class="resource-tag" style="background:rgba(139,92,246,0.2);color:var(--purple)">二四 朝早搭車</span></div><div class="resource-arrow">›</div></a></div>
+  <div class="resource-card"><a class="resource-inner" href="https://www.youtube.com/@da.ren.cademy" target="_blank"><div class="resource-icon res-leadership">🎓</div><div class="resource-info"><div class="resource-name">大人學 YouTube</div><div class="resource-meta">職場溝通 · 中文短片</div><span class="resource-tag" style="background:rgba(139,92,246,0.2);color:var(--purple)">午休 視覺輸入</span></div><div class="resource-arrow">›</div></a></div>
+  <div class="resource-card"><a class="resource-inner" href="https://www.youtube.com/@thenataliedawson" target="_blank"><div class="resource-icon res-leadership">👑</div><div class="resource-info"><div class="resource-name">Natalie Dawson</div><div class="resource-meta">Leadership · Team Building · YouTube</div><span class="resource-tag" style="background:rgba(139,92,246,0.2);color:var(--purple)">朝早搭車 / 午休延伸</span></div><div class="resource-arrow">›</div></a></div>
+  <div class="resource-card"><a class="resource-inner" href="https://www.amazon.com/Crucial-Conversations-Talking-Stakes-Second/dp/1469266822" target="_blank"><div class="resource-icon res-book">📗</div><div class="resource-info"><div class="resource-name">Crucial Conversations</div><div class="resource-meta">Patterson, Grenny et al. · 書 / Audiobook</div><span class="resource-tag" style="background:rgba(255,214,10,0.15);color:var(--gold)">週六 Deep Dive</span></div><div class="resource-arrow">›</div></a></div>
+
+  <div class="res-section-title">🥉 副修 · AI 資訊</div>
+  <div class="resource-card"><a class="resource-inner" href="https://podcasts.apple.com/us/podcast/ai-%E7%A7%91%E6%8A%80%E6%AF%8F%E6%97%A5%E5%A0%B1/id1762971640" target="_blank"><div class="resource-icon res-ai">🤖</div><div class="resource-info"><div class="resource-name">Ai 科技每日報</div><div class="resource-meta">每日 5 分鐘 · 中文</div><span class="resource-tag" style="background:rgba(0,194,255,0.15);color:var(--blue)">放工搭車 輕鬆聽</span></div><div class="resource-arrow">›</div></a></div>
+  <div class="resource-card"><a class="resource-inner" href="https://www.nytimes.com/column/hard-fork" target="_blank"><div class="resource-icon res-ai">🔬</div><div class="resource-info"><div class="resource-name">Hard Fork</div><div class="resource-meta">NYT · Kevin Roose &amp; Casey Newton · 週更</div><span class="resource-tag" style="background:rgba(0,194,255,0.15);color:var(--blue)">放工搭車 深度分析</span></div><div class="resource-arrow">›</div></a></div>
+
+  <div class="res-section-title">📚 延伸 · Stoic Leadership</div>
+  <div class="resource-card"><a class="resource-inner" href="https://www.youtube.com/@RyanHolidayOfficial" target="_blank"><div class="resource-icon res-stoic">🏛</div><div class="resource-info"><div class="resource-name">Ryan Holiday · YouTube</div><div class="resource-meta">Stoicism · Daily Stoic · 情緒控制</div><span class="resource-tag" style="background:rgba(0,255,156,0.1);color:var(--green)">睡前延伸</span></div><div class="resource-arrow">›</div></a></div>
+  <div class="resource-card"><a class="resource-inner" href="https://www.youtube.com/@PursuitofWonder" target="_blank"><div class="resource-icon res-stoic">🔭</div><div class="resource-info"><div class="resource-name">Pursuit of Wonder</div><div class="resource-meta">哲學思考 · 自我提升</div><span class="resource-tag" style="background:rgba(0,255,156,0.1);color:var(--green)">碎片時間補充</span></div><div class="resource-arrow">›</div></a></div>
+</div>
+
+<!-- ==================== PAGE: 回顧 ==================== -->
+<div class="page" id="page-review">
+  <div class="review-banner">⚔ 每月最後一個 <strong>週六 14:15 後</strong> 做 Monthly Review。</div>
+  <div class="card purple-accent">
+    <div class="card-title">◈ Monthly Review</div>
+    <div class="form-group"><label>Q1 · 記得邊 3 個 concept？</label><textarea id="review-q1" placeholder="例：3秒暫停法、STATE模型、Spacing Effect"></textarea></div>
+    <div class="form-group"><label>Q2 · 現實中用過邊一個？效果？</label><textarea id="review-q2" placeholder="例：開會忍住咗冇發火，個 meeting 反而順利咗"></textarea></div>
+    <div class="form-group"><label>Q3 · 情緒日誌有冇見到進步 pattern？</label><textarea id="review-q3" placeholder="例：頭兩週幾乎日日有 trigger，最近少咗..."></textarea></div>
+    <div class="form-group"><label>Q4 · 最順／最易 skip 係邊個環節？</label><textarea id="review-q4" placeholder="例：朝早搭車最順，午休筆記最容易 skip"></textarea></div>
+    <div class="form-group"><label>Q5 · 下個月想微調啲咩？</label><textarea id="review-q5" placeholder="例：午休改用 voice memo 代替打字"></textarea></div>
+    <button class="btn btn-primary" onclick="saveReview()">▶ SAVE MONTHLY REVIEW</button>
+  </div>
+</div>
+
+<!-- ===== TAB BAR ===== -->
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="switchPage('home',this)"><span class="icon">🏠</span>今日</button>
+  <button class="tab-btn" onclick="switchPage('notes',this)"><span class="icon">📝</span>筆記</button>
+  <button class="tab-btn" onclick="switchPage('emotion',this)"><span class="icon">🔥</span>情緒</button>
+  <button class="tab-btn" onclick="switchPage('plan',this)"><span class="icon">⚔️</span>計劃</button>
+  <button class="tab-btn" onclick="switchPage('resources',this)"><span class="icon">🔗</span>資源</button>
+  <button class="tab-btn" onclick="switchPage('review',this)"><span class="icon">📊</span>回顧</button>
+</div>
+
+<script>
+// ===== 設定：填入你的 Apps Script URL =====
+const API_URL = 'https://script.google.com/macros/s/AKfycbyuUASPyvkIaGOA6cm1d5KCbV_I8KaJVSZYNyOIb0vQoZ5BqMYfpS36Vumd6ZJRub_N5Q/exec';
+const VERSION    = 'v2.1';
+const CACHE_KEY  = 'sys_tracker_key'; // localStorage 嘅儲存名
+let   SECRET_KEY = '';                // 由 localStorage 或用戶輸入，唔寫死
+
+// ===== Login：顯示/隱藏 Key =====
+function toggleKeyVisibility() {
+  const input = document.getElementById('key-input');
+  const btn   = document.getElementById('toggle-pw-btn');
+  if (input.type === 'password') {
+    input.type = 'text';
+    btn.textContent = '🙈';
+  } else {
+    input.type = 'password';
+    btn.textContent = '👁';
+  }
+}
+
+// ===== Login：提交 Key =====
+async function submitKey() {
+  const input    = document.getElementById('key-input');
+  const errorEl  = document.getElementById('login-error');
+  const btn      = document.getElementById('login-btn');
+  const key      = input.value.trim();
+
+  if (!key) {
+    errorEl.textContent = '⚠ PLEASE ENTER YOUR ACCESS KEY';
+    input.classList.add('error');
+    return;
+  }
+
+  btn.disabled    = true;
+  btn.textContent = 'VERIFYING...';
+  errorEl.textContent = '';
+  input.classList.remove('error');
+
+  try {
+    // Call GAS validateKey endpoint
+    const url = new URL(API_URL);
+    url.searchParams.set('action', 'validateKey');
+    url.searchParams.set('key', key);
+    const res    = await fetch(url.toString(), { redirect: 'follow' });
+    const result = await res.json();
+
+    if (result.valid) {
+      // ✅ Key 正確：存入 localStorage，隱藏 Login 畫面
+      SECRET_KEY = key;
+      localStorage.setItem(CACHE_KEY, key);
+      document.getElementById('login-screen').classList.remove('active');
+      loadDashboard();
+    } else {
+      // ❌ Key 錯誤
+      errorEl.textContent = '❌ INVALID KEY · ACCESS DENIED';
+      input.classList.add('error');
+      input.value = '';
+      input.focus();
+    }
+  } catch (e) {
+    errorEl.textContent = '❌ CONNECTION FAILED · ' + e.message;
+  }
+
+  btn.disabled    = false;
+  btn.textContent = '▶ AUTHENTICATE';
+}
+
+// ===== Logout =====
+function logout() {
+  if (!confirm('登出後需要重新輸入 Key。確認？')) return;
+  localStorage.removeItem(CACHE_KEY);
+  SECRET_KEY = '';
+  document.getElementById('login-screen').classList.add('active');
+  document.getElementById('key-input').value = '';
+  document.getElementById('login-error').textContent = '';
+}
+
+// ===== 狀態 =====
+let hadTrigger = null;
+const checklist = { morning:false, lunch:false, evening:false, bedtime:false };
+
+// ===== API 工具 =====
+async function apiGet(action, params = {}) {
+  const url = new URL(API_URL);
+  url.searchParams.set('action', action);
+  url.searchParams.set('key', SECRET_KEY);  // ← 加呢行
+  Object.entries(params).forEach(([k,v]) => url.searchParams.set(k, v));
+  const res = await fetch(url.toString(), { redirect: 'follow' });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return res.json();
+}
+
+async function apiPost(action, data = {}) {
+  const res = await fetch(API_URL, {
+    method:   'POST',
+    redirect: 'follow',
+    // ↓ text/plain 令瀏覽器當佢係 Simple Request，跳過 preflight OPTIONS
+    headers:  { 'Content-Type': 'text/plain' },
+    body:     JSON.stringify({ action, key: SECRET_KEY, data })  // ← 加 key
+  });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return res.json();
+}
+
+// ===== Overlay =====
+function showOverlay(msg) {
+  document.getElementById('overlay-sub').textContent = msg || 'Syncing to Google Sheets';
+  document.getElementById('save-overlay').classList.add('active');
+  document.querySelectorAll('.btn').forEach(b => b.disabled = true);
+}
+function hideOverlay() {
+  document.getElementById('save-overlay').classList.remove('active');
+  document.querySelectorAll('.btn').forEach(b => b.disabled = false);
+}
+
+// ===== Toast =====
+function showToast(msg, isError) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast' + (isError ? ' error' : '') + ' show';
+  setTimeout(() => t.className = 'toast' + (isError ? ' error' : ''), 2500);
+}
+
+// ===== Page Switch =====
+function switchPage(page, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  if (btn) btn.classList.add('active');
+  if (page === 'notes')   loadNotes('leadership');
+  if (page === 'emotion') loadEmotionHistory();
+}
+
+// ===== Dashboard =====
+async function loadDashboard() {
+  const now = new Date();
+  document.getElementById('sys-date').textContent = now.toISOString().slice(0,10).replace(/-/g,'/');
+  document.getElementById('version-badge').textContent = VERSION;
+
+  const dow = now.getDay();
+  document.getElementById('weekday-panel').style.display  = (dow!==0 && dow!==6) ? 'block' : 'none';
+  document.getElementById('saturday-panel').style.display = (dow===6)            ? 'block' : 'none';
+  document.getElementById('sunday-panel').style.display   = (dow===0)            ? 'block' : 'none';
+
+  try {
+    const data = await apiGet('getDashboard');
+    document.getElementById('streak-num').textContent    = data.streak;
+    document.getElementById('total-days').textContent    = data.totalDays;
+    document.getElementById('emotion-count').textContent = data.emotionEntries;
+    document.getElementById('leader-count').textContent  = data.leaderEntries;
+    document.getElementById('today-date-label').textContent = '◈ Daily Quest · ' + data.todayDate;
+    document.getElementById('daily-note').value = data.today.note || '';
+
+    ['morning','lunch','evening','bedtime'].forEach(k => {
+      checklist[k] = data.today[k];
+      const item = document.querySelector(`.checklist-item[data-key="${k}"]`);
+      if (item && data.today[k]) {
+        item.classList.add('checked');
+        item.querySelector('.check-box').textContent = '✓';
+      }
+    });
+
+    document.getElementById('dashboard-loading').style.display  = 'none';
+    document.getElementById('dashboard-content').style.display  = 'block';
+  } catch(e) {
+    document.getElementById('dashboard-loading').innerHTML =
+      '<p style="color:var(--red);padding:20px">❌ 連線失敗，請檢查 API_URL 設定<br><small>' + e.message + '</small></p>';
+  }
+}
+
+// ===== Checklist =====
+function toggleCheck(el) {
+  const key = el.dataset.key;
+  checklist[key] = !checklist[key];
+  el.classList.toggle('checked', checklist[key]);
+  el.classList.remove('auto-checked');
+  el.querySelector('.check-box').textContent = checklist[key] ? '✓' : '';
+}
+
+function autoCheck(key) {
+  checklist[key] = true;
+  const item = document.querySelector(`.checklist-item[data-key="${key}"]`);
+  if (item) {
+    item.classList.remove('checked');
+    item.classList.add('auto-checked');
+    item.querySelector('.check-box').textContent = '✓';
+  }
+}
+
+// ===== Save Daily =====
+async function saveDailyCheckin(silent) {
+  if (!silent) showOverlay('Saving daily record...');
+  const data = {
+    morning:  checklist.morning, lunch:   checklist.lunch,
+    evening:  checklist.evening, bedtime: checklist.bedtime,
+    note:     (document.getElementById('daily-note')||{}).value || ''
+  };
+  try {
+    const result = await apiPost('saveDailyCheckin', data);
+    if (!silent) hideOverlay();
+    document.getElementById('streak-num').textContent = result.streak;
+    if (result.totalDays !== undefined) {
+      document.getElementById('total-days').textContent = result.totalDays;  // ← 加呢行
+    }
+    if (!silent) showToast('✅ SAVED · KEEP GOING');
+  } catch(e) {
+    if (!silent) hideOverlay();
+    showToast('❌ ' + e.message, true);
+  }
+}
+
+// ===== Note Tab =====
+function switchNoteTab(tab, btn) {
+  document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('note-tab-leadership').style.display = tab==='leadership' ? 'block' : 'none';
+  document.getElementById('note-tab-ai').style.display         = tab==='ai'         ? 'block' : 'none';
+  loadNotes(tab);
+}
+
+// ===== Save Leadership =====
+async function saveLeadershipNote() {
+  const data = {
+    learned:     document.getElementById('lead-learned').value,
+    application: document.getElementById('lead-application').value
+  };
+  if (!data.learned) { showToast('⚠ FILL IN WHAT YOU LEARNED', true); return; }
+  showOverlay('Saving leadership note...');
+  try {
+    await apiPost('saveLeadershipNote', data);
+    hideOverlay();
+    document.getElementById('lead-learned').value = '';
+    document.getElementById('lead-application').value = '';
+    showToast('✅ NOTE SAVED');
+    loadNotes('leadership');
+    autoCheck('lunch');
+    saveDailyCheckin(true);
+    const c = document.getElementById('leader-count');
+    if (c) c.textContent = parseInt(c.textContent||0) + 1;
+  } catch(e) {
+    hideOverlay();
+    showToast('❌ ' + e.message, true);
+  }
+}
+
+// ===== Save AI Note =====
+async function saveAINote() {
+  const data = { note: document.getElementById('ai-note').value };
+  if (!data.note) { showToast('⚠ FILL IN THE NOTE', true); return; }
+  showOverlay('Saving AI note...');
+  try {
+    await apiPost('saveAINote', data);
+    hideOverlay();
+    document.getElementById('ai-note').value = '';
+    showToast('✅ AI NOTE SAVED');
+    loadNotes('ai');
+  } catch(e) {
+    hideOverlay();
+    showToast('❌ ' + e.message, true);
+  }
+}
+
+// ===== Load Notes =====
+async function loadNotes(type) {
+  const id = type==='leadership' ? 'leadership-history' : 'ai-history';
+  const container = document.getElementById(id);
+  if (!container) return;
+  container.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  try {
+    const entries = await apiGet('getNotes', { type, limit:15 });
+    if (!entries || entries.length===0) {
+      container.innerHTML = '<div class="empty-state">[ NO RECORDS · WRITE YOUR FIRST NOTE ]</div>'; return;
+    }
+    container.innerHTML = entries.map(e => `
+      <div class="history-item">
+        <div class="history-date">${e.date}</div>
+        <div class="history-content">💡 ${e.values[0]||''}</div>
+        ${type==='leadership' && e.values[1] ? `<div class="history-sub">📌 ${e.values[1]}</div>` : ''}
+      </div>`).join('');
+  } catch(e) {
+    container.innerHTML = `<p style="color:var(--red)">❌ ${e.message}</p>`;
+  }
+}
+
+// ===== Emotion =====
+function selectTrigger(val, el) {
+  hadTrigger = val;
+  document.querySelectorAll('.emotion-opt').forEach(o => o.classList.remove('selected-yes','selected-no'));
+  el.classList.add(val ? 'selected-yes' : 'selected-no');
+  document.getElementById('emotion-fields').classList.toggle('show', val);
+}
+
+async function saveEmotion() {
+  if (hadTrigger===null) { showToast('⚠ SELECT TRIGGER STATUS', true); return; }
+  const data = {
+    hadTrigger:  hadTrigger ? '有' : '冇',
+    event:       hadTrigger ? document.getElementById('emo-event').value      : '（今日平靜）',
+    reaction:    hadTrigger ? document.getElementById('emo-reaction').value   : '-',
+    outcome:     hadTrigger ? document.getElementById('emo-outcome').value    : '-',
+    alternative: hadTrigger ? document.getElementById('emo-alternative').value: '-'
+  };
+  showOverlay('Saving emotion log...');
+  try {
+    await apiPost('saveEmotionEntry', data);
+    hideOverlay();
+    showToast('✅ EMOTION LOG SAVED');
+    autoCheck('bedtime');
+    saveDailyCheckin(true);
+    const c = document.getElementById('emotion-count');
+    if (c) c.textContent = parseInt(c.textContent||0) + 1;
+    hadTrigger = null;
+    document.querySelectorAll('.emotion-opt').forEach(o => o.classList.remove('selected-yes','selected-no'));
+    document.getElementById('emotion-fields').classList.remove('show');
+    ['emo-event','emo-reaction','emo-outcome','emo-alternative'].forEach(id => { document.getElementById(id).value = ''; });
+    loadEmotionHistory();
+  } catch(e) {
+    hideOverlay();
+    showToast('❌ ' + e.message, true);
+  }
+}
+
+async function loadEmotionHistory() {
+  const container = document.getElementById('emotion-history');
+  container.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  try {
+    const entries = await apiGet('getEmotions', { limit:15 });
+    if (!entries || entries.length===0) {
+      container.innerHTML = '<div class="empty-state">[ NO RECORDS · WRITE YOUR FIRST LOG TONIGHT 🌙 ]</div>'; return;
+    }
+    container.innerHTML = entries.map(e => {
+      const isTrig = e.hadTrigger==='有';
+      return `<div class="history-item">
+        <div class="history-date">${e.date}
+          <span style="color:${isTrig?'var(--red)':'var(--green)'};margin-left:8px">
+            ${isTrig ? '😤 TRIGGERED' : '😌 CALM'}
+          </span>
+        </div>
+        ${isTrig
+          ? `<div class="history-content">${e.event}</div>
+             <div class="history-sub">🔄 重來：${e.alternative}</div>`
+          : `<div class="history-content" style="color:var(--green)">✨ 平靜日</div>`}
+      </div>`;
+    }).join('');
+  } catch(e) {
+    container.innerHTML = `<p style="color:var(--red)">❌ ${e.message}</p>`;
+  }
+}
+
+// ===== Plan Accordion（互斥）=====
+function togglePlan(header) {
+  const body        = header.nextElementSibling;
+  const isOpen      = body.classList.contains('open');
+  document.querySelectorAll('.plan-body').forEach(b => b.classList.remove('open'));
+  if (!isOpen) body.classList.add('open');
+}
+
+// ===== Save Review =====
+async function saveReview() {
+  const data = {
+    q1: document.getElementById('review-q1').value,
+    q2: document.getElementById('review-q2').value,
+    q3: document.getElementById('review-q3').value,
+    q4: document.getElementById('review-q4').value,
+    q5: document.getElementById('review-q5').value
+  };
+  if (!data.q1 && !data.q2) { showToast('⚠ FILL AT LEAST Q1 OR Q2', true); return; }
+  showOverlay('Saving monthly review...');
+  try {
+    await apiPost('saveMonthlyReview', data);
+    hideOverlay();
+    showToast('✅ MONTHLY REVIEW SAVED');
+    ['review-q1','review-q2','review-q3','review-q4','review-q5'].forEach(id => { document.getElementById(id).value = ''; });
+  } catch(e) {
+    hideOverlay();
+    showToast('❌ ' + e.message, true);
+  }
+}
+
+// ===== 開 App 時自動檢查 localStorage =====
+window.onload = async function() {
+  const now = new Date();
+  document.getElementById('sys-date').textContent =
+    now.toISOString().slice(0,10).replace(/-/g,'/');
+  document.getElementById('version-badge').textContent = VERSION;
+
+  const cached = localStorage.getItem(CACHE_KEY);
+  if (cached) {
+    // 有 cache：靜默驗證一次（防止 key 被改過）
+    try {
+      const url = new URL(API_URL);
+      url.searchParams.set('action', 'validateKey');
+      url.searchParams.set('key', cached);
+      const res    = await fetch(url.toString(), { redirect: 'follow' });
+      const result = await res.json();
+
+      if (result.valid) {
+        SECRET_KEY = cached;
+        document.getElementById('login-screen').classList.remove('active');
+        loadDashboard();
+      } else {
+        // Cache 過期或 key 已改，清除並顯示 Login
+        localStorage.removeItem(CACHE_KEY);
+        document.getElementById('login-screen').classList.add('active');
+      }
+    } catch (e) {
+      // 網絡問題：仍然信任 cached key，直接入
+      SECRET_KEY = cached;
+      document.getElementById('login-screen').classList.remove('active');
+      loadDashboard();
+    }
+  } else {
+    // 冇 cache：顯示 Login 畫面
+    document.getElementById('login-screen').classList.add('active');
+  }
+};
+</script>
+</body>
+</html>
